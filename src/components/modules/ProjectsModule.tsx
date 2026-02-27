@@ -21,6 +21,7 @@ import {
   DollarSign, Target, Eye, ChevronLeft, ChevronRight, GripVertical, FileSpreadsheet, File,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { saveFile, getFile, deleteFile, dataUrlToBlobUrl, getFileType, isViewableInBrowser } from '@/lib/fileStorage';
 import type { 
   Project, ProjectTask, Milestone, ProjectStatus, ProjectPriority, 
   TaskStatus, ProjectType, ClientInfo, ProjectDocument, ProjectMeeting,
@@ -649,14 +650,22 @@ export function ProjectsModule() {
     setIsDocumentDialogOpen(true);
   };
 
-  const saveDocument = () => {
+  const saveDocument = async () => {
     if (!selectedProject || !documentForm.name.trim()) return;
+    const docId = editingDocument?.id || uuidv4();
+    
+    // If there's file data, save it to IndexedDB
+    if (documentForm.fileData) {
+      const fileKey = `${selectedProject.id}-${docId}`;
+      await saveFile(fileKey, documentForm.fileData);
+    }
+    
     const docData: ProjectDocument = {
-      id: editingDocument?.id || uuidv4(),
+      id: docId,
       name: documentForm.name.trim(), type: documentForm.type, description: documentForm.description.trim() || undefined,
       date: documentForm.date, version: documentForm.version, status: documentForm.status,
       fileName: documentForm.fileName || undefined,
-      fileData: documentForm.fileData || undefined,
+      fileData: documentForm.fileData ? `${selectedProject.id}-${docId}` : undefined, // Store reference instead of data
       fileSize: documentForm.fileSize || undefined,
       createdAt: editingDocument?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
@@ -665,30 +674,42 @@ export function ProjectsModule() {
     setIsDocumentDialogOpen(false);
   };
 
-  const openDocumentViewer = (doc: ProjectDocument) => {
+  const openDocumentViewer = async (doc: ProjectDocument) => {
+    // If fileData is a reference, load from IndexedDB
     if (doc.fileData) {
-      setViewingDocument(doc);
-      setIsDocumentViewerOpen(true);
+      if (doc.fileData.includes('-')) {
+        // It's a reference, load from IndexedDB
+        const fileData = await getFile(doc.fileData);
+        if (fileData) {
+          setViewingDocument({ ...doc, fileData });
+          setIsDocumentViewerOpen(true);
+        } else {
+          alert('No se pudo cargar el archivo');
+        }
+      } else {
+        // It's actual data (legacy format)
+        setViewingDocument(doc);
+        setIsDocumentViewerOpen(true);
+      }
     }
   };
 
-  const downloadDocument = (doc: ProjectDocument) => {
-    if (doc.fileData) {
+  const downloadDocument = async (doc: ProjectDocument) => {
+    let fileData = doc.fileData;
+    
+    // If fileData is a reference, load from IndexedDB
+    if (fileData && fileData.includes('-')) {
+      fileData = await getFile(fileData) || undefined;
+    }
+    
+    if (fileData) {
       const link = document.createElement('a');
-      link.href = doc.fileData;
+      link.href = fileData;
       link.download = doc.fileName || doc.name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
-  };
-
-  const getFileType = (fileName: string): 'pdf' | 'word' | 'excel' | 'other' => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return 'pdf';
-    if (['doc', 'docx'].includes(ext || '')) return 'word';
-    if (['xls', 'xlsx'].includes(ext || '')) return 'excel';
-    return 'other';
   };
 
   // Meeting CRUD
@@ -813,27 +834,13 @@ export function ProjectsModule() {
 
   // Render document viewer
   const renderDocumentViewer = () => {
-    if (!viewingDocument) return null;
+    if (!viewingDocument || !viewingDocument.fileData) return null;
 
     const fileType = viewingDocument.fileName ? getFileType(viewingDocument.fileName) : 'other';
+    const isViewable = viewingDocument.fileName ? isViewableInBrowser(viewingDocument.fileName) : false;
     
-    // Create blob URL for preview
-    const getBlobUrl = (fileData: string, fileName: string): string => {
-      // Extract mime type from base64 data URL
-      const mimeMatch = fileData.match(/^data:([^;]+);/);
-      const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-      
-      // Convert base64 to blob
-      const base64Data = fileData.split(',')[1];
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: mimeType });
-      return URL.createObjectURL(blob);
-    };
+    // Create blob URL for preview (works better than data URL for PDFs)
+    const blobUrl = dataUrlToBlobUrl(viewingDocument.fileData);
 
     return (
       <Dialog open={isDocumentViewerOpen} onOpenChange={setIsDocumentViewerOpen}>
@@ -857,18 +864,33 @@ export function ProjectsModule() {
                   <Download className="h-4 w-4 mr-1" />
                   Descargar
                 </Button>
+                {isViewable && (
+                  <Button variant="outline" size="sm" onClick={() => window.open(blobUrl, '_blank')}>
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Abrir en nueva pestaña
+                  </Button>
+                )}
               </div>
             </div>
           </DialogHeader>
           <div className="h-[80vh] overflow-auto">
-            {fileType === 'pdf' && viewingDocument.fileData && (
+            {fileType === 'pdf' && (
               <iframe
-                src={viewingDocument.fileData}
+                src={blobUrl}
                 className="w-full h-full border-0"
                 title={viewingDocument.name}
               />
             )}
-            {fileType === 'word' && viewingDocument.fileData && (
+            {fileType === 'image' && (
+              <div className="flex items-center justify-center h-full p-4">
+                <img 
+                  src={blobUrl} 
+                  alt={viewingDocument.name}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            )}
+            {fileType === 'word' && (
               <div className="h-full flex flex-col">
                 <div className="bg-muted p-2 flex items-center justify-between border-b">
                   <span className="text-sm text-muted-foreground">
@@ -877,23 +899,20 @@ export function ProjectsModule() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      const blobUrl = getBlobUrl(viewingDocument.fileData!, viewingDocument.fileName || 'document.docx');
-                      window.open(blobUrl, '_blank');
-                    }}
+                    onClick={() => window.open(blobUrl, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4 mr-1" />
                     Abrir en nueva pestaña
                   </Button>
                 </div>
                 <iframe
-                  src={getBlobUrl(viewingDocument.fileData, viewingDocument.fileName || 'document.docx')}
+                  src={blobUrl}
                   className="flex-1 w-full border-0"
                   title={viewingDocument.name}
                 />
               </div>
             )}
-            {fileType === 'excel' && viewingDocument.fileData && (
+            {fileType === 'excel' && (
               <div className="h-full flex flex-col">
                 <div className="bg-muted p-2 flex items-center justify-between border-b">
                   <span className="text-sm text-muted-foreground">
@@ -902,17 +921,14 @@ export function ProjectsModule() {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      const blobUrl = getBlobUrl(viewingDocument.fileData!, viewingDocument.fileName || 'spreadsheet.xlsx');
-                      window.open(blobUrl, '_blank');
-                    }}
+                    onClick={() => window.open(blobUrl, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4 mr-1" />
                     Abrir en nueva pestaña
                   </Button>
                 </div>
                 <iframe
-                  src={getBlobUrl(viewingDocument.fileData, viewingDocument.fileName || 'spreadsheet.xlsx')}
+                  src={blobUrl}
                   className="flex-1 w-full border-0"
                   title={viewingDocument.name}
                 />
