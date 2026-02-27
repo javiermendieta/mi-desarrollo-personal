@@ -19,6 +19,33 @@ import { AIAssistant } from '@/components/AIAssistant';
 import { AuthForm } from '@/components/AuthForm';
 import { useAppStore } from '@/lib/store';
 
+// Helper para verificar si hay datos en localStorage
+function hasLocalData(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const stored = localStorage.getItem('personal-dev-storage');
+    if (!stored) return false;
+    const parsed = JSON.parse(stored);
+    // Verificar si hay algún dato real (no solo defaults)
+    const hasData = parsed?.state && (
+      (parsed.state.events?.length > 0) ||
+      (parsed.state.habits?.length > 0) ||
+      (parsed.state.goals?.length > 0) ||
+      (parsed.state.transactions?.length > 0) ||
+      (parsed.state.sports?.length > 0) ||
+      (parsed.state.books?.length > 0) ||
+      (parsed.state.projects?.length > 0) ||
+      (parsed.state.diaryEntries?.length > 0) ||
+      (parsed.state.meditationSessions?.length > 0) ||
+      (parsed.state.accountPlan?.length > 0) ||
+      (parsed.state.pnlData?.length > 0)
+    );
+    return hasData;
+  } catch {
+    return false;
+  }
+}
+
 export default function Home() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isAIOpen, setIsAIOpen] = useState(false);
@@ -35,11 +62,23 @@ export default function Home() {
   const checkAuth = async () => {
     try {
       const res = await fetch('/api/auth/me');
-      const data = await res.json();
+      
+      // Manejo seguro de JSON
+      let data;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
+      }
       
       if (data.user) {
         setIsAuthed(true);
-        await loadData();
+        // Solo cargar de API si NO hay datos locales
+        // Esto permite que localStorage sea la fuente principal
+        if (!hasLocalData()) {
+          await loadDataFromAPI();
+        }
       }
     } catch {
       console.error('Error checking auth');
@@ -48,12 +87,21 @@ export default function Home() {
     }
   };
 
-  const loadData = async () => {
+  const loadDataFromAPI = async () => {
     try {
       const res = await fetch('/api/data');
-      const data = await res.json();
+      
+      // Manejo seguro de JSON
+      let data;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        console.error('Error parsing JSON from API');
+        return;
+      }
 
-      if (!data.error) {
+      if (!data.error && Object.keys(data).length > 0) {
         importAllData({
           settings: data.settings || { theme: 'system', language: 'es', notifications: true, weekStartsOn: 1 },
           aiProfile: data.aiProfile || {},
@@ -70,26 +118,37 @@ export default function Home() {
           transactions: data.transactions || [],
           savingsGoals: data.savingsGoals || [],
           budgets: data.budgets || [],
+          accountPlan: data.accountPlan || [],
+          pnlData: data.pnlData || [],
           sleepLogs: data.sleepLogs || [],
           hydrationLogs: data.hydrationLogs || [],
           healthEntries: data.healthEntries || [],
+          medicalAppointments: data.medicalAppointments || [],
+          medicalTasks: data.medicalTasks || [],
           quickNotes: data.quickNotes || [],
           conversations: data.conversations || [],
           projects: data.projects || [],
+          commercialLeads: data.commercialLeads || [],
+          socialMediaPosts: data.socialMediaPosts || [],
+          projectAlerts: data.projectAlerts || [],
         });
       }
     } catch (e) {
-      console.error('Error loading data', e);
+      console.error('Error loading data from API', e);
     }
   };
 
   const handleAuth = () => {
     setIsAuthed(true);
-    loadData();
+    // No cargar datos de API - usar localStorage como fuente principal
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignorar errores de logout
+    }
     setIsAuthed(false);
   };
 

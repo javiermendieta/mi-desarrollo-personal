@@ -30,7 +30,15 @@ export function AuthForm({ onAuth }: AuthFormProps) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      // Manejo seguro de JSON
+      let data;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        setError('Error de conexión con el servidor');
+        return;
+      }
       
       if (!res.ok) {
         setError(data.error || 'Error al iniciar sesión');
@@ -62,7 +70,15 @@ export function AuthForm({ onAuth }: AuthFormProps) {
         body: JSON.stringify({ email, password, name }),
       });
 
-      const data = await res.json();
+      // Manejo seguro de JSON
+      let data;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        setError('Error de conexión con el servidor');
+        return;
+      }
       
       if (!res.ok) {
         setError(data.error || 'Error al registrar');
