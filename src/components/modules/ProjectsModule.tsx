@@ -1354,82 +1354,82 @@ export function ProjectsModule() {
     const activeLead = activeLeadId ? commercialLeads.find(l => l.id === activeLeadId) : null;
 
     return (
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="h-5 w-5" />Pipeline Comercial</h3>
-            <Button size="sm" onClick={openNewLeadDialog}><Plus className="h-4 w-4 mr-1" />Nuevo Lead</Button>
-          </div>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="h-5 w-5" />Pipeline Comercial</h3>
+          <Button size="sm" onClick={openNewLeadDialog}><Plus className="h-4 w-4 mr-1" />Nuevo Lead</Button>
+        </div>
 
-          {/* Monthly Goals */}
-          <Card className="border-2 border-primary/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Objetivos Mensuales - {format(new Date(), 'MMMM yyyy', { locale: es })}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Objetivo Leads</Label>
+        {/* Monthly Goals */}
+        <Card className="border-2 border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Objetivos Mensuales - {format(new Date(), 'MMMM yyyy', { locale: es })}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Objetivo Leads</Label>
+                  <Input
+                    type="number"
+                    value={monthlyLeadGoal}
+                    onChange={(e) => setMonthlyLeadGoal(parseInt(e.target.value) || 0)}
+                    className="w-20 h-7 text-sm"
+                  />
+                </div>
+                <Progress value={monthlyStats.leadProgress} className="h-2" />
+                <p className="text-xs text-muted-foreground">{monthlyStats.totalLeads} de {monthlyLeadGoal} leads</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Objetivo Facturación</Label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm">$</span>
                     <Input
                       type="number"
-                      value={monthlyLeadGoal}
-                      onChange={(e) => setMonthlyLeadGoal(parseInt(e.target.value) || 0)}
-                      className="w-20 h-7 text-sm"
+                      value={monthlyBillingGoal}
+                      onChange={(e) => setMonthlyBillingGoal(parseInt(e.target.value) || 0)}
+                      className="w-24 h-7 text-sm"
                     />
                   </div>
-                  <Progress value={monthlyStats.leadProgress} className="h-2" />
-                  <p className="text-xs text-muted-foreground">{monthlyStats.totalLeads} de {monthlyLeadGoal} leads</p>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Objetivo Facturación</Label>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm">$</span>
-                      <Input
-                        type="number"
-                        value={monthlyBillingGoal}
-                        onChange={(e) => setMonthlyBillingGoal(parseInt(e.target.value) || 0)}
-                        className="w-24 h-7 text-sm"
-                      />
-                    </div>
-                  </div>
-                  <Progress value={monthlyStats.billingProgress} className="h-2" />
-                  <p className="text-xs text-muted-foreground">${monthlyStats.wonValue.toLocaleString()} de ${monthlyBillingGoal.toLocaleString()}</p>
-                </div>
-                <Card className="bg-blue-50 dark:bg-blue-950/20">
-                  <CardContent className="p-3">
-                    <p className="text-2xl font-bold text-blue-600">{monthlyStats.totalLeads}</p>
-                    <p className="text-xs text-muted-foreground">Leads este mes</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-green-50 dark:bg-green-950/20">
-                  <CardContent className="p-3">
-                    <p className="text-2xl font-bold text-green-600">${monthlyStats.wonValue.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">Facturado este mes</p>
-                  </CardContent>
-                </Card>
+                <Progress value={monthlyStats.billingProgress} className="h-2" />
+                <p className="text-xs text-muted-foreground">${monthlyStats.wonValue.toLocaleString()} de ${monthlyBillingGoal.toLocaleString()}</p>
               </div>
-            </CardContent>
-          </Card>
+              <Card className="bg-blue-50 dark:bg-blue-950/20">
+                <CardContent className="p-3">
+                  <p className="text-2xl font-bold text-blue-600">{monthlyStats.totalLeads}</p>
+                  <p className="text-xs text-muted-foreground">Leads este mes</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-green-50 dark:bg-green-950/20">
+                <CardContent className="p-3">
+                  <p className="text-2xl font-bold text-green-600">${monthlyStats.wonValue.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Facturado este mes</p>
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.length}</p><p className="text-sm text-muted-foreground">Total Leads</p></div></div></CardContent></Card>
-            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><DollarSign className="h-5 w-5 text-green-600" /></div><div><p className="text-2xl font-bold">${commercialLeads.reduce((s, l) => s + (l.value || 0), 0).toLocaleString()}</p><p className="text-sm text-muted-foreground">Valor Total</p></div></div></CardContent></Card>
-            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-purple-100 rounded-lg"><Target className="h-5 w-5 text-purple-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.filter(l => l.status === 'won').length}</p><p className="text-sm text-muted-foreground">Ganados</p></div></div></CardContent></Card>
-            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-orange-100 rounded-lg"><TrendingUp className="h-5 w-5 text-orange-600" /></div><div><p className="text-2xl font-bold">{monthlyStats.contactedCount}</p><p className="text-sm text-muted-foreground">Contactados</p></div></div></CardContent></Card>
-          </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.length}</p><p className="text-sm text-muted-foreground">Total Leads</p></div></div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><DollarSign className="h-5 w-5 text-green-600" /></div><div><p className="text-2xl font-bold">${commercialLeads.reduce((s, l) => s + (l.value || 0), 0).toLocaleString()}</p><p className="text-sm text-muted-foreground">Valor Total</p></div></div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-purple-100 rounded-lg"><Target className="h-5 w-5 text-purple-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.filter(l => l.status === 'won').length}</p><p className="text-sm text-muted-foreground">Ganados</p></div></div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-orange-100 rounded-lg"><TrendingUp className="h-5 w-5 text-orange-600" /></div><div><p className="text-2xl font-bold">{monthlyStats.contactedCount}</p><p className="text-sm text-muted-foreground">Contactados</p></div></div></CardContent></Card>
+        </div>
 
-          {/* Pipeline Board - Horizontal Scroll */}
+        {/* Pipeline Board - Horizontal Scroll */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
           <div className="w-full">
             <div className="pipeline-scroll-container">
               <div className="flex gap-4" style={{ width: 'calc(288px * 7 + 24px * 6)', minWidth: '100%' }}>
@@ -1452,13 +1452,6 @@ export function ProjectsModule() {
                 })}
               </div>
             </div>
-            
-            {/* Scroll hint */}
-            <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground bg-muted/30 rounded">
-              <ChevronLeft className="h-4 w-4" />
-              <span>← Desliza horizontalmente para ver todas las etapas →</span>
-              <ChevronRight className="h-4 w-4" />
-            </div>
           </div>
 
           {/* Drag Overlay */}
@@ -1473,8 +1466,15 @@ export function ProjectsModule() {
               </Card>
             ) : null}
           </DragOverlay>
+        </DndContext>
+        
+        {/* Scroll hint */}
+        <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground bg-muted/30 rounded">
+          <ChevronLeft className="h-4 w-4" />
+          <span>← Desliza horizontalmente para ver todas las etapas →</span>
+          <ChevronRight className="h-4 w-4" />
         </div>
-      </DndContext>
+      </div>
     );
   };
 
