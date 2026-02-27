@@ -102,18 +102,28 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     t.date.startsWith(currentMonth)
   );
   
-  // Calcular ingresos y gastos usando accountPlan
+  // Calcular ingresos y gastos usando accountPlan o type (compatibilidad)
   const monthIncome = monthTransactions
     .filter((t) => {
-      const account = accountPlan.find(a => a.id === t.accountId);
-      return account?.type === 'income';
+      // Si tiene accountId, usar accountPlan
+      if (t.accountId) {
+        const account = accountPlan.find(a => a.id === t.accountId);
+        return account?.type === 'income';
+      }
+      // Si no, usar el type directo (compatibilidad con datos antiguos)
+      return t.type === 'income';
     })
     .reduce((acc, t) => acc + t.amount, 0);
     
   const monthExpenses = monthTransactions
     .filter((t) => {
-      const account = accountPlan.find(a => a.id === t.accountId);
-      return account?.type === 'expense';
+      // Si tiene accountId, usar accountPlan
+      if (t.accountId) {
+        const account = accountPlan.find(a => a.id === t.accountId);
+        return account?.type === 'expense';
+      }
+      // Si no, usar el type directo (compatibilidad con datos antiguos)
+      return t.type === 'expense';
     })
     .reduce((acc, t) => acc + t.amount, 0);
 
