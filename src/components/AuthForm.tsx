@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 interface AuthFormProps {
   onAuth: () => void;
@@ -93,6 +94,30 @@ export function AuthForm({ onAuth }: AuthFormProps) {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const res = await fetch('/api/auth/demo', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setError(data.error || 'Error al iniciar sesión demo');
+        return;
+      }
+
+      onAuth();
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <Card className="w-full max-w-md">
@@ -120,6 +145,25 @@ export function AuthForm({ onAuth }: AuthFormProps) {
                   {isLoading ? 'Cargando...' : 'Iniciar Sesión'}
                 </Button>
               </form>
+              
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <Separator className="w-full" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">O</span>
+                </div>
+              </div>
+              
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full" 
+                onClick={handleDemoLogin}
+                disabled={isLoading}
+              >
+                Entrar como Demo
+              </Button>
             </TabsContent>
             
             <TabsContent value="register">
