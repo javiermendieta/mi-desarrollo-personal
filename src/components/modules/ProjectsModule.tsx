@@ -41,7 +41,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCenter,
+  closestCorners,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   useSortable,
@@ -180,6 +181,66 @@ function DraggableLeadCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// Droppable Pipeline Column Component
+function DroppableColumn({ 
+  stage, 
+  config, 
+  stageLeads, 
+  stageValue,
+  onEditLead,
+  onDeleteLead
+}: { 
+  stage: CommercialLead['status'];
+  config: { label: string; color: string; borderColor: string };
+  stageLeads: CommercialLead[];
+  stageValue: number;
+  onEditLead: (lead: CommercialLead) => void;
+  onDeleteLead: (leadId: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: stage,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex-shrink-0 w-72 min-h-[200px] rounded-lg transition-colors",
+        isOver && "bg-primary/5 ring-2 ring-primary/30"
+      )}
+    >
+      {/* Stage Header */}
+      <div className={cn("mb-3 p-3 rounded-lg border-2", config.color, config.borderColor)}>
+        <div className="flex items-center justify-between">
+          <Badge className={config.color}>{config.label}</Badge>
+          <Badge variant="secondary">{stageLeads.length}</Badge>
+        </div>
+        <div className="mt-2 flex items-center justify-between">
+          <span className="text-sm font-semibold">${stageValue.toLocaleString()}</span>
+          <span className="text-xs text-muted-foreground">{stageLeads.length} leads</span>
+        </div>
+      </div>
+
+      {/* Leads List */}
+      <div className="space-y-2 min-h-[100px]">
+        {stageLeads.map((lead) => (
+          <DraggableLeadCard
+            key={lead.id}
+            lead={lead}
+            onEdit={() => onEditLead(lead)}
+            onDelete={() => onDeleteLead(lead.id)}
+          />
+        ))}
+        {stageLeads.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
+            Arrastra leads aquí
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -755,6 +816,24 @@ export function ProjectsModule() {
     if (!viewingDocument) return null;
 
     const fileType = viewingDocument.fileName ? getFileType(viewingDocument.fileName) : 'other';
+    
+    // Create blob URL for preview
+    const getBlobUrl = (fileData: string, fileName: string): string => {
+      // Extract mime type from base64 data URL
+      const mimeMatch = fileData.match(/^data:([^;]+);/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+      
+      // Convert base64 to blob
+      const base64Data = fileData.split(',')[1];
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimeType });
+      return URL.createObjectURL(blob);
+    };
 
     return (
       <Dialog open={isDocumentViewerOpen} onOpenChange={setIsDocumentViewerOpen}>
@@ -769,6 +848,11 @@ export function ProjectsModule() {
                 {viewingDocument.fileName && (
                   <Badge variant="outline">{viewingDocument.fileName}</Badge>
                 )}
+                {viewingDocument.fileSize && (
+                  <span className="text-xs text-muted-foreground">
+                    {(viewingDocument.fileSize / 1024).toFixed(1)} KB
+                  </span>
+                )}
                 <Button variant="outline" size="sm" onClick={() => downloadDocument(viewingDocument)}>
                   <Download className="h-4 w-4 mr-1" />
                   Descargar
@@ -780,36 +864,58 @@ export function ProjectsModule() {
             {fileType === 'pdf' && viewingDocument.fileData && (
               <iframe
                 src={viewingDocument.fileData}
-                className="w-full h-full"
+                className="w-full h-full border-0"
                 title={viewingDocument.name}
               />
             )}
-            {fileType === 'word' && (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <File className="h-20 w-20 text-blue-500 mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Documento de Word</h3>
-                <p className="text-muted-foreground mb-4">
-                  La vista previa de documentos Word no está disponible.<br />
-                  Descarga el archivo para verlo.
-                </p>
-                <Button onClick={() => downloadDocument(viewingDocument)}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Descargar {viewingDocument.fileName}
-                </Button>
+            {fileType === 'word' && viewingDocument.fileData && (
+              <div className="h-full flex flex-col">
+                <div className="bg-muted p-2 flex items-center justify-between border-b">
+                  <span className="text-sm text-muted-foreground">
+                    Vista previa de documento Word
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const blobUrl = getBlobUrl(viewingDocument.fileData!, viewingDocument.fileName || 'document.docx');
+                      window.open(blobUrl, '_blank');
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Abrir en nueva pestaña
+                  </Button>
+                </div>
+                <iframe
+                  src={getBlobUrl(viewingDocument.fileData, viewingDocument.fileName || 'document.docx')}
+                  className="flex-1 w-full border-0"
+                  title={viewingDocument.name}
+                />
               </div>
             )}
-            {fileType === 'excel' && (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <FileSpreadsheet className="h-20 w-20 text-green-500 mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Planilla de Excel</h3>
-                <p className="text-muted-foreground mb-4">
-                  La vista previa de planillas Excel no está disponible.<br />
-                  Descarga el archivo para verlo.
-                </p>
-                <Button onClick={() => downloadDocument(viewingDocument)}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Descargar {viewingDocument.fileName}
-                </Button>
+            {fileType === 'excel' && viewingDocument.fileData && (
+              <div className="h-full flex flex-col">
+                <div className="bg-muted p-2 flex items-center justify-between border-b">
+                  <span className="text-sm text-muted-foreground">
+                    Vista previa de planilla Excel
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const blobUrl = getBlobUrl(viewingDocument.fileData!, viewingDocument.fileName || 'spreadsheet.xlsx');
+                      window.open(blobUrl, '_blank');
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Abrir en nueva pestaña
+                  </Button>
+                </div>
+                <iframe
+                  src={getBlobUrl(viewingDocument.fileData, viewingDocument.fileName || 'spreadsheet.xlsx')}
+                  className="flex-1 w-full border-0"
+                  title={viewingDocument.name}
+                />
               </div>
             )}
             {fileType === 'other' && (
@@ -1224,6 +1330,24 @@ export function ProjectsModule() {
     </div>
   );
 
+  // Handler for editing lead
+  const handleEditLead = (lead: CommercialLead) => {
+    setEditingLead(lead);
+    setLeadForm({
+      name: lead.name,
+      company: lead.company || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      source: lead.source,
+      status: lead.status,
+      value: lead.value?.toString() || '',
+      probability: lead.probability?.toString() || '50',
+      notes: lead.notes || '',
+      nextFollowUp: lead.nextFollowUp || '',
+    });
+    setIsLeadDialogOpen(true);
+  };
+
   // Render commercial pipeline with drag and drop
   const renderCommercialPipeline = () => {
     const stages = Object.keys(leadStatusConfig) as CommercialLead['status'][];
@@ -1232,7 +1356,7 @@ export function ProjectsModule() {
     return (
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
@@ -1305,61 +1429,42 @@ export function ProjectsModule() {
             <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-orange-100 rounded-lg"><TrendingUp className="h-5 w-5 text-orange-600" /></div><div><p className="text-2xl font-bold">{monthlyStats.contactedCount}</p><p className="text-sm text-muted-foreground">Contactados</p></div></div></CardContent></Card>
           </div>
 
-          {/* Pipeline Board - Horizontal Scroll */}
-          <div className="overflow-x-auto pb-4 -mx-4 px-4">
-            <div className="flex gap-4 min-w-max">
-              {stages.map((stage) => {
-                const stageLeads = commercialLeads.filter(l => l.status === stage);
-                const config = leadStatusConfig[stage];
-                const stageValue = stageLeads.reduce((sum, l) => sum + (l.value || 0), 0);
-                
-                return (
-                  <div
-                    key={stage}
-                    id={stage}
-                    className="flex-shrink-0 w-72"
-                  >
-                    {/* Stage Header */}
-                    <div className={cn("mb-3 p-3 rounded-lg border-2", config.color, config.borderColor)}>
-                      <div className="flex items-center justify-between">
-                        <Badge className={config.color}>{config.label}</Badge>
-                        <Badge variant="secondary">{stageLeads.length}</Badge>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold">${stageValue.toLocaleString()}</span>
-                        <span className="text-xs text-muted-foreground">{stageLeads.length} leads</span>
-                      </div>
-                    </div>
-
-                    {/* Leads List */}
-                    <div className="space-y-2 min-h-[100px]">
-                      {stageLeads.map((lead) => (
-                        <DraggableLeadCard
-                          key={lead.id}
-                          lead={lead}
-                          onEdit={() => {
-                            setEditingLead(lead);
-                            setLeadForm({
-                              name: lead.name,
-                              company: lead.company || '',
-                              email: lead.email || '',
-                              phone: lead.phone || '',
-                              source: lead.source,
-                              status: lead.status,
-                              value: lead.value?.toString() || '',
-                              probability: lead.probability?.toString() || '50',
-                              notes: lead.notes || '',
-                              nextFollowUp: lead.nextFollowUp || '',
-                            });
-                            setIsLeadDialogOpen(true);
-                          }}
-                          onDelete={() => deleteCommercialLead(lead.id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Pipeline Board - Horizontal Scroll with visible scrollbar */}
+          <div className="relative">
+            {/* Scroll indicators */}
+            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none hidden" id="scroll-left-indicator" />
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none hidden" id="scroll-right-indicator" />
+            
+            <div 
+              className="overflow-x-auto pb-4 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-primary/50"
+              style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--primary) / 0.3) hsl(var(--muted))' }}
+            >
+              <div className="flex gap-4 min-w-max px-1 py-1">
+                {stages.map((stage) => {
+                  const stageLeads = commercialLeads.filter(l => l.status === stage);
+                  const config = leadStatusConfig[stage];
+                  const stageValue = stageLeads.reduce((sum, l) => sum + (l.value || 0), 0);
+                  
+                  return (
+                    <DroppableColumn
+                      key={stage}
+                      stage={stage}
+                      config={config}
+                      stageLeads={stageLeads}
+                      stageValue={stageValue}
+                      onEditLead={handleEditLead}
+                      onDeleteLead={deleteCommercialLead}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Scroll hint */}
+            <div className="flex items-center justify-center gap-2 mt-2 text-xs text-muted-foreground">
+              <ChevronLeft className="h-4 w-4" />
+              <span>Desliza para ver más etapas</span>
+              <ChevronRight className="h-4 w-4" />
             </div>
           </div>
 
