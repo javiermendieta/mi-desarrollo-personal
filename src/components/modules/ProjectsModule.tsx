@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { saveFile, getFile, deleteFile, dataUrlToBlobUrl, getFileType, isViewableInBrowser } from '@/lib/fileStorage';
+import { saveProjectToDB, deleteProjectFromDB, saveCommercialLeadToDB, deleteCommercialLeadFromDB } from '@/lib/dbApi';
 import type { 
   Project, ProjectTask, Milestone, ProjectStatus, ProjectPriority, 
   TaskStatus, ProjectType, ClientInfo, ProjectDocument, ProjectMeeting,
@@ -513,7 +514,7 @@ export function ProjectsModule() {
     setIsProjectDialogOpen(true);
   };
 
-  const saveProject = () => {
+  const saveProject = async () => {
     if (!projectForm.name.trim()) return;
     
     const clientInfo: ClientInfo | undefined = projectForm.type === 'client' ? {
@@ -539,8 +540,33 @@ export function ProjectsModule() {
       createdAt: editingProject?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
     
-    if (editingProject) updateProject(editingProject.id, projectData);
-    else addProject(projectData);
+    if (editingProject) {
+      updateProject(editingProject.id, projectData);
+    } else {
+      addProject(projectData);
+    }
+    
+    // Sync to DB
+    try {
+      await saveProjectToDB({
+        id: projectData.id,
+        name: projectData.name,
+        description: projectData.description,
+        client: clientInfo?.name,
+        status: projectData.status,
+        type: projectData.type,
+        startDate: projectData.startDate,
+        endDate: projectData.deadline,
+        color: projectData.color,
+        tasks: projectData.tasks,
+        milestones: projectData.milestones,
+        documents: projectData.documents,
+        meetings: projectData.meetings,
+      });
+    } catch (e) {
+      console.error('Error saving project to DB:', e);
+    }
+    
     setIsProjectDialogOpen(false);
   };
 

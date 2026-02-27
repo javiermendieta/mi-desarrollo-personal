@@ -27,6 +27,10 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import type { AccountPlanItem, PNLSectionType, Transaction } from '@/types';
+import { 
+  saveAccountPlanToDB, deleteAccountPlanFromDB,
+  savePNLToDB, saveTransactionToDB, deleteTransactionFromDB 
+} from '@/lib/dbApi';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -187,18 +191,6 @@ export function FinanceModule() {
     new Set(['gross_sales', 'cost_of_sales', 'cmv', 'operating_expenses'])
   );
 
-  // Initialize P&L for selected month
-  const initializePNL = () => {
-    const newPNL = {
-      id: uuidv4(),
-      period: selectedMonth,
-      accountPlans: accountPlan.map(a => ({ accountId: a.id, theoretical: 0 })),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    addPNLData(newPNL);
-  };
-
   // Account functions
   const openAccountDialog = (account: AccountPlanItem | null = null) => {
     setEditingAccount(account);
@@ -216,7 +208,7 @@ export function FinanceModule() {
     setAccountDialog(true);
   };
 
-  const saveAccount = () => {
+  const saveAccount = async () => {
     if (!accountName.trim()) return;
     const now = new Date().toISOString();
     
@@ -227,9 +219,22 @@ export function FinanceModule() {
         section: accountSection,
         type: accountType,
       });
+      // Sync to DB
+      try {
+        await saveAccountPlanToDB({
+          id: editingAccount.id,
+          name: accountName.trim(),
+          code: accountCode.trim() || undefined,
+          type: accountType,
+          category: accountSection,
+        });
+      } catch (e) {
+        console.error('Error saving account to DB:', e);
+      }
     } else {
+      const newId = uuidv4();
       addAccountPlanItem({
-        id: uuidv4(),
+        id: newId,
         name: accountName.trim(),
         code: accountCode.trim() || undefined,
         section: accountSection,
@@ -238,6 +243,18 @@ export function FinanceModule() {
         createdAt: now,
         updatedAt: now,
       });
+      // Sync to DB
+      try {
+        await saveAccountPlanToDB({
+          id: newId,
+          name: accountName.trim(),
+          code: accountCode.trim() || undefined,
+          type: accountType,
+          category: accountSection,
+        });
+      } catch (e) {
+        console.error('Error saving account to DB:', e);
+      }
     }
     setAccountDialog(false);
   };
@@ -261,7 +278,7 @@ export function FinanceModule() {
     setTransactionDialog(true);
   };
 
-  const saveTransaction = () => {
+  const saveTransaction = async () => {
     if (!transactionAccountId || !transactionAmount) return;
     const account = accountPlan.find(a => a.id === transactionAccountId);
     if (!account) return;
@@ -277,19 +294,93 @@ export function FinanceModule() {
 
     if (editingTransaction) {
       updateTransaction(editingTransaction.id, transactionData);
+      // Sync to DB
+      try {
+        await saveTransactionToDB({
+          id: editingTransaction.id,
+          ...transactionData,
+        });
+      } catch (e) {
+        console.error('Error saving transaction to DB:', e);
+      }
     } else {
+      const newId = uuidv4();
       addTransaction({
-        id: uuidv4(),
+        id: newId,
         ...transactionData,
       });
+      // Sync to DB
+      try {
+        await saveTransactionToDB({
+          id: newId,
+          ...transactionData,
+        });
+      } catch (e) {
+        console.error('Error saving transaction to DB:', e);
+      }
     }
     setTransactionDialog(false);
   };
 
   // Update theoretical value
-  const updateTheoretical = (accountId: string, value: number) => {
+  const updateTheoretical = async (accountId: string, value: number) => {
     if (!currentPNL) return;
     updatePNLAccountPlan(currentPNL.id, accountId, value);
+    // Sync to DB - debounced
+    const updatedAccountPlans = currentPNL.accountPlans.map(ap => 
+      ap.accountId === accountId ? { accountId, theoretical: value } : ap
+    );
+    try {
+      await savePNLToDB({
+        id: currentPNL.id,
+        period: currentPNL.period,
+        accountPlans: updatedAccountPlans,
+      });
+    } catch (e) {
+      console.error('Error saving P&L to DB:', e);
+    }
+  };
+
+  // Delete account with DB sync
+  const handleDeleteAccount = async (accountId: string) => {
+    deleteAccountPlanItem(accountId);
+    try {
+      await deleteAccountPlanFromDB(accountId);
+    } catch (e) {
+      console.error('Error deleting account from DB:', e);
+    }
+  };
+
+  // Delete transaction with DB sync
+  const handleDeleteTransaction = async (transactionId: string) => {
+    deleteTransaction(transactionId);
+    try {
+      await deleteTransactionFromDB(transactionId);
+    } catch (e) {
+      console.error('Error deleting transaction from DB:', e);
+    }
+  };
+
+  // Initialize P&L with DB sync
+  const initializePNL = async () => {
+    const newPNL = {
+      id: uuidv4(),
+      period: selectedMonth,
+      accountPlans: accountPlan.map(a => ({ accountId: a.id, theoretical: 0 })),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    addPNLData(newPNL);
+    // Sync to DB
+    try {
+      await savePNLToDB({
+        id: newPNL.id,
+        period: newPNL.period,
+        accountPlans: newPNL.accountPlans,
+      });
+    } catch (e) {
+      console.error('Error initializing P&L in DB:', e);
+    }
   };
 
   // Format helpers
@@ -434,7 +525,7 @@ export function FinanceModule() {
                       <Edit className="h-3 w-3" />
                     </Button>
                     {!account.isDefault && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deleteAccountPlanItem(account.id)}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteAccount(account.id)}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     )}
@@ -717,7 +808,7 @@ export function FinanceModule() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openTransactionDialog(t)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteTransaction(t.id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteTransaction(t.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -779,7 +870,7 @@ export function FinanceModule() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                               {!account.isDefault && (
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteAccountPlanItem(account.id)}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteAccount(account.id)}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               )}
