@@ -1425,8 +1425,14 @@ export function ProjectsModule() {
 
         {/* Pipeline Board - Horizontal Scroll (sin DndContext) */}
         <div className="w-full">
-          <div className="pipeline-scroll-container">
-            <div className="flex gap-4" style={{ width: 'calc(288px * 7 + 24px * 6)', minWidth: '100%' }}>
+          <div 
+            className="overflow-x-auto overflow-y-visible"
+            style={{ 
+              overscrollBehaviorX: 'contain',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
               {stages.map((stage) => {
                 const stageLeads = commercialLeads.filter(l => l.status === stage);
                 const config = leadStatusConfig[stage];
@@ -1435,7 +1441,7 @@ export function ProjectsModule() {
                 return (
                   <div
                     key={stage}
-                    className="flex-shrink-0 w-72 min-h-[200px] rounded-lg"
+                    className="flex-shrink-0 w-72"
                   >
                     {/* Stage Header */}
                     <div className={cn("mb-3 p-3 rounded-lg border-2", config.color, config.borderColor)}>

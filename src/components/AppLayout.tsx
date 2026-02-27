@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   LayoutDashboard,
@@ -323,7 +323,8 @@ export function AppLayout({ children, activeSection, onSectionChange, onOpenAI, 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden lg:pt-0 pt-14 pb-16 lg:pb-0">
         <ScrollArea className="h-full">
-          <div className="p-4 lg:p-6">{children}</div>
+          <div className="p-4 lg:p-6 min-w-0">{children}</div>
+          <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </main>
 
