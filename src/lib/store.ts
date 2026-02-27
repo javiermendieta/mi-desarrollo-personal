@@ -8,7 +8,7 @@ import type {
   Goal, Habit, Transaction, SavingsGoal, Budget, SleepLog, HydrationLog,
   HealthEntry, QuickNote, AIConversation, Project, ProjectTask, Milestone,
   SocialMediaPost, CommercialLead, ProjectDocument, ProjectMeeting, ProjectAlert,
-  MedicalAppointment, MedicalTask,
+  MedicalAppointment, MedicalTask, PNLData, PNLSection, PNLLineItem,
 } from '@/types';
 
 const defaultSettings: AppSettings = {
@@ -40,6 +40,7 @@ const defaultData: Omit<AppData, 'settings' | 'aiProfile'> = {
   transactions: [],
   savingsGoals: [],
   budgets: [],
+  pnlData: [],
   sleepLogs: [],
   hydrationLogs: [],
   healthEntries: [],
@@ -100,6 +101,16 @@ interface AppState extends AppData {
   addBudget: (budget: Budget) => void;
   updateBudget: (id: string, budget: Partial<Budget>) => void;
   deleteBudget: (id: string) => void;
+  // P&L
+  addPNLData: (pnl: PNLData) => void;
+  updatePNLData: (id: string, pnl: Partial<PNLData>) => void;
+  deletePNLData: (id: string) => void;
+  addPNLSection: (pnlId: string, section: PNLSection) => void;
+  updatePNLSection: (pnlId: string, sectionId: string, section: Partial<PNLSection>) => void;
+  deletePNLSection: (pnlId: string, sectionId: string) => void;
+  addPNLLineItem: (pnlId: string, sectionId: string, lineItem: PNLLineItem) => void;
+  updatePNLLineItem: (pnlId: string, sectionId: string, lineItemId: string, lineItem: Partial<PNLLineItem>) => void;
+  deletePNLLineItem: (pnlId: string, sectionId: string, lineItemId: string) => void;
   addSleepLog: (log: SleepLog) => void;
   updateSleepLog: (id: string, log: Partial<SleepLog>) => void;
   addHydrationLog: (log: HydrationLog) => void;
@@ -244,6 +255,17 @@ export const useAppStore = create<AppState>()(
       updateBudget: (id, budget) => set((state) => ({ budgets: state.budgets.map((b) => b.id === id ? { ...b, ...budget } : b) })),
       deleteBudget: (id) => set((state) => ({ budgets: state.budgets.filter((b) => b.id !== id) })),
 
+      // P&L
+      addPNLData: (pnl) => set((state) => ({ pnlData: [...state.pnlData, pnl] })),
+      updatePNLData: (id, pnl) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === id ? { ...p, ...pnl, updatedAt: new Date().toISOString() } : p) })),
+      deletePNLData: (id) => set((state) => ({ pnlData: state.pnlData.filter((p) => p.id !== id) })),
+      addPNLSection: (pnlId, section) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: [...p.sections, section] } : p) })),
+      updatePNLSection: (pnlId, sectionId, section) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, ...section } : s) } : p) })),
+      deletePNLSection: (pnlId, sectionId) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.filter((s) => s.id !== sectionId) } : p) })),
+      addPNLLineItem: (pnlId, sectionId, lineItem) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, lineItems: [...s.lineItems, lineItem] } : s) } : p) })),
+      updatePNLLineItem: (pnlId, sectionId, lineItemId, lineItem) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, lineItems: s.lineItems.map((l) => l.id === lineItemId ? { ...l, ...lineItem } : l) } : s) } : p) })),
+      deletePNLLineItem: (pnlId, sectionId, lineItemId) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, lineItems: s.lineItems.filter((l) => l.id !== lineItemId) } : s) } : p) })),
+
       // Health
       addSleepLog: (log) => set((state) => ({ sleepLogs: [...state.sleepLogs, log] })),
       updateSleepLog: (id, log) => set((state) => ({ sleepLogs: state.sleepLogs.map((l) => l.id === id ? { ...l, ...log } : l) })),
@@ -359,6 +381,7 @@ export const useAppStore = create<AppState>()(
         transactions: data.transactions || [],
         savingsGoals: data.savingsGoals || [],
         budgets: data.budgets || [],
+        pnlData: data.pnlData || [],
         sleepLogs: data.sleepLogs || [],
         hydrationLogs: data.hydrationLogs || [],
         healthEntries: data.healthEntries || [],

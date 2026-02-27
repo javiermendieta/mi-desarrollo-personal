@@ -191,6 +191,33 @@ export interface Budget {
   month: string;
 }
 
+// ==================== P&L (Profit & Loss) ====================
+export type PNLSectionType = 'gross_sales' | 'cost_of_sales' | 'cmv' | 'operating_expenses';
+
+export interface PNLLineItem {
+  id: string;
+  name: string;
+  theoretical: number; // Valor presupuesto/teórico
+  real: number; // Valor real
+  order: number;
+}
+
+export interface PNLSection {
+  id: string;
+  type: PNLSectionType;
+  name: string;
+  lineItems: PNLLineItem[];
+  order: number;
+}
+
+export interface PNLData {
+  id: string;
+  period: string; // yyyy-MM
+  sections: PNLSection[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ==================== HEALTH ====================
 export interface SleepLog {
   id: string;
@@ -453,6 +480,7 @@ export interface AppData {
   transactions: Transaction[];
   savingsGoals: SavingsGoal[];
   budgets: Budget[];
+  pnlData: PNLData[];
   sleepLogs: SleepLog[];
   hydrationLogs: HydrationLog[];
   healthEntries: HealthEntry[];

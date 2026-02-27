@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -14,631 +15,618 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Plus, Trash2, TrendingUp, TrendingDown, PiggyBank, Target, DollarSign } from 'lucide-react';
+import { 
+  Wallet, Plus, Trash2, TrendingUp, TrendingDown, PiggyBank, Target, DollarSign,
+  Edit, Save, X, ChevronDown, ChevronUp
+} from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { cn } from '@/lib/utils';
-import type { Transaction, SavingsGoal, Budget, TransactionCategory } from '@/types';
+import type { PNLData, PNLSection, PNLLineItem, PNLSectionType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, subMonths } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
+import { cn } from '@/lib/utils';
 
-const TRANSACTION_CATEGORIES: { value: TransactionCategory; label: string; color: string }[] = [
-  { value: 'salary', label: 'Salario', color: '#22c55e' },
-  { value: 'freelance', label: 'Freelance', color: '#10b981' },
-  { value: 'investment', label: 'Inversión', color: '#14b8a6' },
-  { value: 'food', label: 'Comida', color: '#f59e0b' },
-  { value: 'transport', label: 'Transporte', color: '#6366f1' },
-  { value: 'entertainment', label: 'Entretenimiento', color: '#ec4899' },
-  { value: 'health', label: 'Salud', color: '#ef4444' },
-  { value: 'education', label: 'Educación', color: '#8b5cf6' },
-  { value: 'shopping', label: 'Compras', color: '#f97316' },
-  { value: 'bills', label: 'Facturas', color: '#64748b' },
-  { value: 'other', label: 'Otros', color: '#94a3b8' },
+const SECTION_CONFIG: Record<PNLSectionType, { label: string; color: string; sign: 'positive' | 'negative' }> = {
+  gross_sales: { label: 'Venta Bruta', color: 'bg-green-50 dark:bg-green-950/30', sign: 'positive' },
+  cost_of_sales: { label: 'Costo de Ventas', color: 'bg-red-50 dark:bg-red-950/30', sign: 'negative' },
+  cmv: { label: 'CMV', color: 'bg-orange-50 dark:bg-orange-950/30', sign: 'negative' },
+  operating_expenses: { label: 'Gastos Operativos', color: 'bg-yellow-50 dark:bg-yellow-950/30', sign: 'negative' },
+};
+
+const CALCULATED_SECTIONS = [
+  { id: 'net_sales', label: 'Venta Neta', formula: 'gross_sales - cost_of_sales', color: 'bg-blue-50 dark:bg-blue-950/30' },
+  { id: 'contribution_margin', label: 'Margen de Contribución', formula: 'net_sales - cmv', color: 'bg-purple-50 dark:bg-purple-950/30' },
+  { id: 'profit', label: 'Profit', formula: 'contribution_margin - operating_expenses', color: 'bg-emerald-50 dark:bg-emerald-950/30' },
 ];
-
-const COLORS = ['#22c55e', '#f59e0b', '#6366f1', '#ec4899', '#ef4444', '#8b5cf6', '#f97316', '#64748b', '#94a3b8'];
 
 export function FinanceModule() {
   const { 
+    pnlData, addPNLData, updatePNLData, deletePNLData,
+    addPNLSection, updatePNLSection, deletePNLSection,
+    addPNLLineItem, updatePNLLineItem, deletePNLLineItem,
     transactions, addTransaction, deleteTransaction,
     savingsGoals, addSavingsGoal, updateSavingsGoal, deleteSavingsGoal,
     budgets, addBudget, updateBudget, deleteBudget,
   } = useAppStore();
 
-  const [transactionDialog, setTransactionDialog] = useState(false);
-  const [savingsDialog, setSavingsDialog] = useState(false);
-  const [budgetDialog, setBudgetDialog] = useState(false);
-
-  const [transType, setTransType] = useState<'income' | 'expense'>('expense');
-  const [transAmount, setTransAmount] = useState('');
-  const [transCategory, setTransCategory] = useState<TransactionCategory>('other');
-  const [transDescription, setTransDescription] = useState('');
-  const [transDate, setTransDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-
-  const [savingsName, setSavingsName] = useState('');
-  const [savingsTarget, setSavingsTarget] = useState('');
-  const [savingsCurrent, setSavingsCurrent] = useState('');
-  const [savingsDeadline, setSavingsDeadline] = useState('');
-  const [editingSavings, setEditingSavings] = useState<SavingsGoal | null>(null);
-
-  const [budgetCategory, setBudgetCategory] = useState<TransactionCategory>('food');
-  const [budgetLimit, setBudgetLimit] = useState('');
-  const [budgetMonth, setBudgetMonth] = useState(format(new Date(), 'yyyy-MM'));
-
   const currentMonth = format(new Date(), 'yyyy-MM');
-  const monthTransactions = transactions.filter((t) => format(new Date(t.date), 'yyyy-MM') === currentMonth);
-  const totalIncome = monthTransactions.filter((t) => t.type === 'income').reduce((a, t) => a + t.amount, 0);
-  const totalExpenses = monthTransactions.filter((t) => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
-  const balance = totalIncome - totalExpenses;
+  
+  // Get or create P&L for current month
+  const currentPNL = useMemo(() => {
+    return pnlData.find(p => p.period === currentMonth);
+  }, [pnlData, currentMonth]);
 
-  // Chart data - last 6 months
-  const last6Months = Array.from({ length: 6 }, (_, i) => subMonths(new Date(), 5 - i));
-  const monthlyData = last6Months.map(month => {
-    const monthStr = format(month, 'yyyy-MM');
-    const monthTrans = transactions.filter(t => format(new Date(t.date), 'yyyy-MM') === monthStr);
-    return {
-      name: format(month, 'MMM', { locale: es }),
-      ingresos: monthTrans.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0),
-      gastos: monthTrans.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0),
+  // Calculate section totals
+  const sectionTotals = useMemo(() => {
+    if (!currentPNL) return {};
+    
+    const totals: Record<string, { theoretical: number; real: number }> = {};
+    
+    currentPNL.sections.forEach(section => {
+      const theoretical = section.lineItems.reduce((sum, item) => sum + item.theoretical, 0);
+      const real = section.lineItems.reduce((sum, item) => sum + item.real, 0);
+      totals[section.type] = { theoretical, real };
+    });
+    
+    return totals;
+  }, [currentPNL]);
+
+  // Calculate derived values
+  const calculatedValues = useMemo(() => {
+    const grossSales = sectionTotals['gross_sales'] || { theoretical: 0, real: 0 };
+    const costOfSales = sectionTotals['cost_of_sales'] || { theoretical: 0, real: 0 };
+    const cmv = sectionTotals['cmv'] || { theoretical: 0, real: 0 };
+    const operatingExpenses = sectionTotals['operating_expenses'] || { theoretical: 0, real: 0 };
+
+    const netSales = {
+      theoretical: grossSales.theoretical - costOfSales.theoretical,
+      real: grossSales.real - costOfSales.real,
     };
-  });
 
-  // Expense by category for pie chart
-  const expensesByCategory = TRANSACTION_CATEGORIES
-    .filter(c => c.value !== 'salary' && c.value !== 'freelance' && c.value !== 'investment')
-    .map(cat => ({
-      name: cat.label,
-      value: monthTransactions.filter(t => t.type === 'expense' && t.category === cat.value).reduce((a, t) => a + t.amount, 0),
-      color: cat.color,
-    }))
-    .filter(d => d.value > 0);
-
-  // Budget progress
-  const currentBudgets = budgets.filter(b => b.month === currentMonth);
-  const budgetProgress = currentBudgets.map(budget => {
-    const spent = monthTransactions
-      .filter(t => t.type === 'expense' && t.category === budget.category)
-      .reduce((a, t) => a + t.amount, 0);
-    return {
-      ...budget,
-      spent,
-      percentage: Math.min(100, Math.round((spent / budget.limit) * 100)),
-      remaining: budget.limit - spent,
+    const contributionMargin = {
+      theoretical: netSales.theoretical - cmv.theoretical,
+      real: netSales.real - cmv.real,
     };
-  });
 
-  const handleSaveTransaction = () => {
-    if (!transAmount) return;
-    const transaction: Transaction = {
+    const profit = {
+      theoretical: contributionMargin.theoretical - operatingExpenses.theoretical,
+      real: contributionMargin.real - operatingExpenses.real,
+    };
+
+    return { netSales, contributionMargin, profit };
+  }, [sectionTotals]);
+
+  // Total gross sales for % calculations
+  const totalGrossSales = sectionTotals['gross_sales']?.real || 1;
+
+  // Dialog states
+  const [lineItemDialog, setLineItemDialog] = useState(false);
+  const [sectionDialog, setSectionDialog] = useState(false);
+  const [editingSection, setEditingSection] = useState<PNLSectionType | null>(null);
+  const [editingLineItem, setEditingLineItem] = useState<{ sectionId: string; item: PNLLineItem | null }>({ sectionId: '', item: null });
+
+  // Form states
+  const [lineItemName, setLineItemName] = useState('');
+  const [lineItemTheoretical, setLineItemTheoretical] = useState('');
+  const [lineItemReal, setLineItemReal] = useState('');
+
+  // Initialize P&L for current month
+  const initializePNL = () => {
+    const defaultSections: PNLSection[] = [
+      { id: uuidv4(), type: 'gross_sales', name: 'Venta Bruta', lineItems: [], order: 1 },
+      { id: uuidv4(), type: 'cost_of_sales', name: 'Costo de Ventas', lineItems: [], order: 2 },
+      { id: uuidv4(), type: 'cmv', name: 'CMV', lineItems: [], order: 3 },
+      { id: uuidv4(), type: 'operating_expenses', name: 'Gastos Operativos', lineItems: [], order: 4 },
+    ];
+
+    const newPNL: PNLData = {
       id: uuidv4(),
-      type: transType,
-      amount: parseFloat(transAmount),
-      category: transCategory,
-      description: transDescription || '',
-      date: transDate,
+      period: currentMonth,
+      sections: defaultSections,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
-    addTransaction(transaction);
-    setTransactionDialog(false);
-    setTransType('expense');
-    setTransAmount('');
-    setTransCategory('other');
-    setTransDescription('');
-    setTransDate(format(new Date(), 'yyyy-MM-dd'));
+
+    addPNLData(newPNL);
   };
 
-  const handleSaveSavings = () => {
-    if (!savingsName || !savingsTarget) return;
-    const goal: SavingsGoal = {
-      id: editingSavings?.id || uuidv4(),
-      name: savingsName,
-      targetAmount: parseFloat(savingsTarget),
-      currentAmount: parseFloat(savingsCurrent) || 0,
-      deadline: savingsDeadline || undefined,
-      createdAt: editingSavings?.createdAt || new Date().toISOString(),
-    };
-    if (editingSavings) {
-      updateSavingsGoal(editingSavings.id, goal);
+  const openLineItemDialog = (sectionId: string, item: PNLLineItem | null = null) => {
+    setEditingSection(null);
+    setEditingLineItem({ sectionId, item });
+    if (item) {
+      setLineItemName(item.name);
+      setLineItemTheoretical(item.theoretical.toString());
+      setLineItemReal(item.real.toString());
     } else {
-      addSavingsGoal(goal);
+      setLineItemName('');
+      setLineItemTheoretical('');
+      setLineItemReal('');
     }
-    setSavingsDialog(false);
-    setSavingsName('');
-    setSavingsTarget('');
-    setSavingsCurrent('');
-    setSavingsDeadline('');
-    setEditingSavings(null);
+    setLineItemDialog(true);
   };
 
-  const handleSaveBudget = () => {
-    if (!budgetLimit) return;
-    const budget: Budget = {
-      id: uuidv4(),
-      category: budgetCategory,
-      limit: parseFloat(budgetLimit),
-      month: budgetMonth,
+  const saveLineItem = () => {
+    if (!lineItemName.trim() || !currentPNL) return;
+
+    const lineItem: PNLLineItem = {
+      id: editingLineItem.item?.id || uuidv4(),
+      name: lineItemName.trim(),
+      theoretical: parseFloat(lineItemTheoretical) || 0,
+      real: parseFloat(lineItemReal) || 0,
+      order: editingLineItem.item?.order || Date.now(),
     };
-    // Check if budget already exists for this category/month
-    const existing = budgets.find(b => b.category === budgetCategory && b.month === budgetMonth);
-    if (existing) {
-      updateBudget(existing.id, { limit: parseFloat(budgetLimit) });
+
+    if (editingLineItem.item) {
+      updatePNLLineItem(currentPNL.id, editingLineItem.sectionId, editingLineItem.item.id, lineItem);
     } else {
-      addBudget(budget);
+      addPNLLineItem(currentPNL.id, editingLineItem.sectionId, lineItem);
     }
-    setBudgetDialog(false);
-    setBudgetLimit('');
+
+    setLineItemDialog(false);
+    setLineItemName('');
+    setLineItemTheoretical('');
+    setLineItemReal('');
+    setEditingLineItem({ sectionId: '', item: null });
   };
 
-  const getCategoryLabel = (cat: string) => TRANSACTION_CATEGORIES.find((c) => c.value === cat)?.label || cat;
-  const getCategoryColor = (cat: string) => TRANSACTION_CATEGORIES.find((c) => c.value === cat)?.color || '#94a3b8';
+  const deleteLineItem = (sectionId: string, itemId: string) => {
+    if (!currentPNL) return;
+    deletePNLLineItem(currentPNL.id, sectionId, itemId);
+  };
+
+  // Format helpers
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
+  };
+
+  const formatPercent = (value: number) => {
+    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  };
+
+  const getDeviation = (theoretical: number, real: number) => {
+    const deviationAmount = real - theoretical;
+    const deviationPercent = theoretical !== 0 ? ((real - theoretical) / theoretical) * 100 : 0;
+    return { amount: deviationAmount, percent: deviationPercent };
+  };
+
+  const getPercentOfSales = (value: number) => {
+    return totalGrossSales !== 0 ? (value / totalGrossSales) * 100 : 0;
+  };
+
+  // Render section
+  const renderSection = (section: PNLSection, isExpanded: boolean, toggleExpand: () => void) => {
+    const total = sectionTotals[section.type] || { theoretical: 0, real: 0 };
+    const deviation = getDeviation(total.theoretical, total.real);
+    const percentOfSales = getPercentOfSales(total.real);
+    const config = SECTION_CONFIG[section.type];
+
+    return (
+      <div key={section.id} className={cn("rounded-lg border overflow-hidden", config.color)}>
+        {/* Section Header */}
+        <div 
+          className="flex items-center justify-between p-3 cursor-pointer hover:bg-black/5"
+          onClick={toggleExpand}
+        >
+          <div className="flex items-center gap-2">
+            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <span className="font-semibold">{section.name}</span>
+            <Badge variant="outline">{section.lineItems.length} líneas</Badge>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <div className="text-right">
+              <span className="text-muted-foreground">Teórico: </span>
+              <span className={cn("font-medium", config.sign === 'positive' ? 'text-green-600' : 'text-red-600')}>
+                {config.sign === 'positive' ? '+' : '-'}{formatCurrency(total.theoretical)}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-muted-foreground">Real: </span>
+              <span className={cn("font-medium", config.sign === 'positive' ? 'text-green-600' : 'text-red-600')}>
+                {config.sign === 'positive' ? '+' : '-'}{formatCurrency(total.real)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded Content */}
+        {isExpanded && (
+          <div className="border-t">
+            {/* Header Row */}
+            <div className="grid grid-cols-12 gap-2 p-2 bg-black/5 text-xs font-medium text-muted-foreground">
+              <div className="col-span-3">Concepto</div>
+              <div className="col-span-2 text-right">Teórico</div>
+              <div className="col-span-2 text-right">Real</div>
+              <div className="col-span-2 text-right">Desvío $</div>
+              <div className="col-span-1 text-right">Desvío %</div>
+              <div className="col-span-1 text-right">% Venta</div>
+              <div className="col-span-1"></div>
+            </div>
+
+            {/* Line Items */}
+            {section.lineItems.map(item => {
+              const itemDeviation = getDeviation(item.theoretical, item.real);
+              const itemPercentOfSales = getPercentOfSales(item.real);
+
+              return (
+                <div key={item.id} className="grid grid-cols-12 gap-2 p-2 border-t items-center hover:bg-black/5">
+                  <div className="col-span-3 font-medium">{item.name}</div>
+                  <div className="col-span-2 text-right">{formatCurrency(item.theoretical)}</div>
+                  <div className="col-span-2 text-right">{formatCurrency(item.real)}</div>
+                  <div className={cn("col-span-2 text-right", itemDeviation.amount >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {formatCurrency(itemDeviation.amount)}
+                  </div>
+                  <div className={cn("col-span-1 text-right text-xs", itemDeviation.percent >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {formatPercent(itemDeviation.percent)}
+                  </div>
+                  <div className="col-span-1 text-right text-xs text-muted-foreground">
+                    {itemPercentOfSales.toFixed(1)}%
+                  </div>
+                  <div className="col-span-1 flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openLineItemDialog(section.id, item)}>
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => deleteLineItem(section.id, item.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Add Line Button */}
+            <div className="p-2 border-t">
+              <Button variant="outline" size="sm" className="w-full" onClick={() => openLineItemDialog(section.id)}>
+                <Plus className="h-4 w-4 mr-1" /> Agregar Línea
+              </Button>
+            </div>
+
+            {/* Section Total */}
+            <div className="grid grid-cols-12 gap-2 p-2 border-t bg-black/10 font-semibold">
+              <div className="col-span-3">Total {section.name}</div>
+              <div className="col-span-2 text-right">{formatCurrency(total.theoretical)}</div>
+              <div className="col-span-2 text-right">{formatCurrency(total.real)}</div>
+              <div className={cn("col-span-2 text-right", deviation.amount >= 0 ? 'text-green-600' : 'text-red-600')}>
+                {formatCurrency(deviation.amount)}
+              </div>
+              <div className={cn("col-span-1 text-right text-xs", deviation.percent >= 0 ? 'text-green-600' : 'text-red-600')}>
+                {formatPercent(deviation.percent)}
+              </div>
+              <div className="col-span-1 text-right text-xs">{percentOfSales.toFixed(1)}%</div>
+              <div className="col-span-1"></div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render calculated section
+  const renderCalculatedSection = (
+    id: string, 
+    label: string, 
+    values: { theoretical: number; real: number },
+    color: string
+  ) => {
+    const deviation = getDeviation(values.theoretical, values.real);
+    const percentOfSales = getPercentOfSales(values.real);
+
+    return (
+      <div key={id} className={cn("rounded-lg border p-3", color)}>
+        <div className="grid grid-cols-12 gap-2 items-center">
+          <div className="col-span-3 font-bold text-lg">{label}</div>
+          <div className="col-span-2 text-right font-semibold">{formatCurrency(values.theoretical)}</div>
+          <div className="col-span-2 text-right font-semibold">{formatCurrency(values.real)}</div>
+          <div className={cn("col-span-2 text-right font-semibold", deviation.amount >= 0 ? 'text-green-600' : 'text-red-600')}>
+            {formatCurrency(deviation.amount)}
+          </div>
+          <div className={cn("col-span-1 text-right font-semibold", deviation.percent >= 0 ? 'text-green-600' : 'text-red-600')}>
+            {formatPercent(deviation.percent)}
+          </div>
+          <div className="col-span-1 text-right font-semibold">{percentOfSales.toFixed(1)}%</div>
+          <div className="col-span-1"></div>
+        </div>
+      </div>
+    );
+  };
+
+  // Expanded sections state
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['gross_sales', 'cost_of_sales', 'cmv', 'operating_expenses']));
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg"><TrendingUp className="h-5 w-5 text-green-600" /></div>
-              <div><p className="text-sm text-muted-foreground">Ingresos</p><p className="text-2xl font-bold text-green-600">${totalIncome.toLocaleString()}</p></div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 rounded-lg"><TrendingDown className="h-5 w-5 text-red-600" /></div>
-              <div><p className="text-sm text-muted-foreground">Gastos</p><p className="text-2xl font-bold text-red-600">${totalExpenses.toLocaleString()}</p></div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg"><Wallet className="h-5 w-5 text-blue-600" /></div>
-              <div><p className="text-sm text-muted-foreground">Balance</p><p className={`text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>${balance.toLocaleString()}</p></div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg"><PiggyBank className="h-5 w-5 text-purple-600" /></div>
-              <div><p className="text-sm text-muted-foreground">Ahorros</p><p className="text-2xl font-bold text-purple-600">${savingsGoals.reduce((a, g) => a + g.currentAmount, 0).toLocaleString()}</p></div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">P&L - Estado de Pérdidas y Ganancias</h2>
+          <p className="text-muted-foreground">{format(new Date(), 'MMMM yyyy', { locale: es })}</p>
+        </div>
+        {!currentPNL && (
+          <Button onClick={initializePNL}>
+            <Plus className="h-4 w-4 mr-2" /> Inicializar P&L
+          </Button>
+        )}
       </div>
 
-      <Tabs defaultValue="transactions" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="pnl">P&L</TabsTrigger>
-          <TabsTrigger value="transactions">Transacciones</TabsTrigger>
-          <TabsTrigger value="budgets">Presupuestos</TabsTrigger>
-          <TabsTrigger value="savings">Ahorros</TabsTrigger>
-          <TabsTrigger value="analytics">Análisis</TabsTrigger>
-        </TabsList>
+      {currentPNL ? (
+        <Tabs defaultValue="pnl" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="pnl">P&L</TabsTrigger>
+            <TabsTrigger value="transactions">Transacciones</TabsTrigger>
+            <TabsTrigger value="budgets">Presupuestos</TabsTrigger>
+            <TabsTrigger value="savings">Ahorros</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="pnl" className="space-y-4">
-          {/* P&L Summary */}
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Estado de Pérdidas y Ganancias - {format(new Date(), 'MMMM yyyy', { locale: es })}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Ingresos */}
-                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
-                  <h3 className="font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    Ingresos
-                  </h3>
+          <TabsContent value="pnl" className="space-y-4">
+            {/* Summary Cards */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Venta Neta</p>
+                      <p className="text-2xl font-bold text-green-600">{formatCurrency(calculatedValues.netSales.real)}</p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-green-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Margen Contrib.</p>
+                      <p className="text-2xl font-bold text-purple-600">{formatCurrency(calculatedValues.contributionMargin.real)}</p>
+                    </div>
+                    <Target className="h-8 w-8 text-purple-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className={cn(
+                "bg-gradient-to-br",
+                calculatedValues.profit.real >= 0 
+                  ? "from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900"
+                  : "from-red-50 to-red-100 dark:from-red-950 dark:to-red-900"
+              )}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Profit</p>
+                      <p className={cn("text-2xl font-bold", calculatedValues.profit.real >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                        {formatCurrency(calculatedValues.profit.real)}
+                      </p>
+                    </div>
+                    <DollarSign className="h-8 w-8 text-emerald-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Desvío Profit</p>
+                      <p className={cn("text-2xl font-bold", getDeviation(calculatedValues.profit.theoretical, calculatedValues.profit.real).amount >= 0 ? 'text-blue-600' : 'text-red-600')}>
+                        {formatPercent(getDeviation(calculatedValues.profit.theoretical, calculatedValues.profit.real).percent)}
+                      </p>
+                    </div>
+                    <TrendingDown className="h-8 w-8 text-blue-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* P&L Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5" />
+                  Estado de Resultados - Teórico vs Real
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {/* Column Headers */}
+                <div className="grid grid-cols-12 gap-2 p-2 bg-muted rounded-lg text-sm font-medium">
+                  <div className="col-span-3">Concepto</div>
+                  <div className="col-span-2 text-right">Teórico</div>
+                  <div className="col-span-2 text-right">Real</div>
+                  <div className="col-span-2 text-right">Desvío $</div>
+                  <div className="col-span-1 text-right">Desvío %</div>
+                  <div className="col-span-1 text-right">% Venta</div>
+                  <div className="col-span-1"></div>
+                </div>
+
+                {/* Sections in order */}
+                {currentPNL.sections
+                  .sort((a, b) => a.order - b.order)
+                  .map(section => renderSection(section, expandedSections.has(section.id), () => toggleSection(section.id)))}
+
+                {/* Net Sales */}
+                {renderCalculatedSection('net_sales', 'Venta Neta', calculatedValues.netSales, CALCULATED_SECTIONS[0].color)}
+
+                {/* CMV */}
+                {currentPNL.sections
+                  .filter(s => s.type === 'cmv')
+                  .map(section => renderSection(section, expandedSections.has(section.id), () => toggleSection(section.id)))}
+
+                {/* Contribution Margin */}
+                {renderCalculatedSection('contribution_margin', 'Margen de Contribución', calculatedValues.contributionMargin, CALCULATED_SECTIONS[1].color)}
+
+                {/* Operating Expenses */}
+                {currentPNL.sections
+                  .filter(s => s.type === 'operating_expenses')
+                  .map(section => renderSection(section, expandedSections.has(section.id), () => toggleSection(section.id)))}
+
+                {/* Profit */}
+                {renderCalculatedSection('profit', 'PROFIT', calculatedValues.profit, CALCULATED_SECTIONS[2].color)}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="transactions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Transacciones del Mes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {transactions.length > 0 ? (
                   <div className="space-y-2">
-                    {TRANSACTION_CATEGORIES
-                      .filter(c => ['salary', 'freelance', 'investment', 'other'].includes(c.value))
-                      .map(cat => {
-                        const amount = monthTransactions
-                          .filter(t => t.type === 'income' && t.category === cat.value)
-                          .reduce((a, t) => a + t.amount, 0);
-                        if (amount === 0) return null;
-                        return (
-                          <div key={cat.value} className="flex justify-between">
-                            <span className="text-sm">{cat.label}</span>
-                            <span className="font-medium text-green-600">+${amount.toLocaleString()}</span>
-                          </div>
-                        );
-                      })}
-                    <div className="flex justify-between pt-2 border-t border-green-200 dark:border-green-800">
-                      <span className="font-semibold">Total Ingresos</span>
-                      <span className="font-bold text-green-600 text-lg">${totalIncome.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Gastos */}
-                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
-                  <h3 className="font-semibold text-red-700 dark:text-red-400 mb-3 flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4" />
-                    Gastos
-                  </h3>
-                  <div className="space-y-2">
-                    {TRANSACTION_CATEGORIES
-                      .filter(c => !['salary', 'freelance', 'investment'].includes(c.value))
-                      .map(cat => {
-                        const amount = monthTransactions
-                          .filter(t => t.type === 'expense' && t.category === cat.value)
-                          .reduce((a, t) => a + t.amount, 0);
-                        if (amount === 0) return null;
-                        return (
-                          <div key={cat.value} className="flex justify-between">
-                            <span className="text-sm flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                              {cat.label}
-                            </span>
-                            <span className="font-medium text-red-600">-${amount.toLocaleString()}</span>
-                          </div>
-                        );
-                      })}
-                    <div className="flex justify-between pt-2 border-t border-red-200 dark:border-red-800">
-                      <span className="font-semibold">Total Gastos</span>
-                      <span className="font-bold text-red-600 text-lg">-${totalExpenses.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resultado Neto */}
-                <div className={`p-4 rounded-lg ${balance >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-lg">Resultado Neto</span>
-                    <span className={`font-bold text-2xl ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {balance >= 0 ? '+' : ''}${balance.toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {balance >= 0 ? '✓ Superávit este mes' : '⚠ Déficit este mes'}
-                  </p>
-                </div>
-
-                {/* Ratio de Ahorro */}
-                {totalIncome > 0 && (
-                  <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">Ratio de Ahorro</span>
-                      <span className="font-bold text-blue-600">
-                        {((balance / totalIncome) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <Progress 
-                      value={Math.max(0, (balance / totalIncome) * 100)} 
-                      className="h-2 mt-2" 
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Recomendado: ≥20% de los ingresos
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Monthly Comparison */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Comparación Mensual</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2">Mes</th>
-                      <th className="text-right py-2">Ingresos</th>
-                      <th className="text-right py-2">Gastos</th>
-                      <th className="text-right py-2">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {last6Months.map(month => {
-                      const monthStr = format(month, 'yyyy-MM');
-                      const monthTrans = transactions.filter(t => format(new Date(t.date), 'yyyy-MM') === monthStr);
-                      const income = monthTrans.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
-                      const expense = monthTrans.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
-                      const bal = income - expense;
-                      const isCurrentMonth = monthStr === currentMonth;
-                      return (
-                        <tr key={monthStr} className={cn("border-b", isCurrentMonth && "bg-muted/50 font-medium")}>
-                          <td className="py-2">{format(month, 'MMMM yyyy', { locale: es })}</td>
-                          <td className="text-right text-green-600">${income.toLocaleString()}</td>
-                          <td className="text-right text-red-600">${expense.toLocaleString()}</td>
-                          <td className={cn("text-right font-medium", bal >= 0 ? 'text-green-600' : 'text-red-600')}>
-                            {bal >= 0 ? '+' : ''}${bal.toLocaleString()}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="transactions" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Transacciones de {format(new Date(), 'MMMM yyyy', { locale: es })}</CardTitle>
-                <Button size="sm" onClick={() => setTransactionDialog(true)}><Plus className="h-4 w-4 mr-1" /> Nueva</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {monthTransactions.length > 0 ? (
-                <div className="space-y-2">
-                  {monthTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20).map((t) => (
-                    <div key={t.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${t.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
-                          {t.type === 'income' ? <TrendingUp className="h-4 w-4 text-green-600" /> : <TrendingDown className="h-4 w-4 text-red-600" />}
-                        </div>
+                    {transactions.slice(0, 10).map(t => (
+                      <div key={t.id} className="flex justify-between items-center p-2 rounded bg-muted/50">
                         <div>
-                          <p className="font-medium">{t.description || getCategoryLabel(t.category)}</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs text-muted-foreground">{format(new Date(t.date), 'd MMM yyyy')}</p>
-                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: getCategoryColor(t.category) + '20', color: getCategoryColor(t.category) }}>
-                              {getCategoryLabel(t.category)}
-                            </span>
-                          </div>
+                          <p className="font-medium">{t.description || 'Sin descripción'}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(t.date), 'd MMM yyyy')}</p>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                          {t.type === 'income' ? '+' : '-'}${t.amount.toLocaleString()}
-                        </span>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>¿Eliminar transacción?</AlertDialogTitle></AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteTransaction(t.id)}>Eliminar</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-4">No hay transacciones este mes</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="budgets" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2"><Target className="h-5 w-5" />Presupuestos Mensuales</CardTitle>
-                <Button size="sm" onClick={() => setBudgetDialog(true)}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {budgetProgress.length > 0 ? (
-                <div className="space-y-4">
-                  {budgetProgress.map((bp) => (
-                    <div key={bp.id} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{getCategoryLabel(bp.category)}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">${bp.spent} / ${bp.limit}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteBudget(bp.id)}>
+                          <span className={t.type === 'income' ? 'text-green-600' : 'text-red-600'}>
+                            {t.type === 'income' ? '+' : '-'}${t.amount.toLocaleString()}
+                          </span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteTransaction(t.id)}>
                             <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
                       </div>
-                      <Progress value={bp.percentage} className={`h-2 ${bp.percentage >= 90 ? '[&>div]:bg-red-500' : bp.percentage >= 70 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-green-500'}`} />
-                      <p className="text-xs text-muted-foreground">Restante: ${bp.remaining.toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-4">No hay presupuestos configurados</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">No hay transacciones</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="savings" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2"><PiggyBank className="h-5 w-5 text-purple-500" />Metas de Ahorro</CardTitle>
-                <Button size="sm" onClick={() => setSavingsDialog(true)}><Plus className="h-4 w-4 mr-1" /> Nueva</Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {savingsGoals.length > 0 ? (
-                <div className="space-y-4">
-                  {savingsGoals.map((goal) => (
-                    <div key={goal.id} className="p-4 rounded-lg bg-muted/50 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">{goal.name}</span>
-                          {goal.deadline && (
-                            <p className="text-xs text-muted-foreground">Fecha límite: {format(new Date(goal.deadline), 'd MMM yyyy')}</p>
-                          )}
-                        </div>
+          <TabsContent value="budgets" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Presupuestos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {budgets.length > 0 ? (
+                  <div className="space-y-2">
+                    {budgets.map(b => (
+                      <div key={b.id} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                        <span>{b.category}</span>
                         <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            className="w-24 h-8"
-                            value={goal.currentAmount}
-                            onChange={(e) => updateSavingsGoal(goal.id, { currentAmount: parseFloat(e.target.value) || 0 })}
-                          />
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteSavingsGoal(goal.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                          <span>${b.limit.toLocaleString()}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteBudget(b.id)}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
                       </div>
-                      <Progress value={(goal.currentAmount / goal.targetAmount) * 100} className="h-2" />
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>${goal.currentAmount.toLocaleString()}</span>
-                        <span>${goal.targetAmount.toLocaleString()}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">No hay presupuestos</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="savings" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Metas de Ahorro</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {savingsGoals.length > 0 ? (
+                  <div className="space-y-4">
+                    {savingsGoals.map(goal => (
+                      <div key={goal.id} className="p-4 rounded-lg bg-muted/50">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-medium">{goal.name}</span>
+                            <p className="text-xs text-muted-foreground">
+                              Meta: ${goal.targetAmount.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">${goal.currentAmount.toLocaleString()}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteSavingsGoal(goal.id)}>
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-4">No hay metas de ahorro</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader><CardTitle className="text-lg">Ingresos vs Gastos (6 meses)</CardTitle></CardHeader>
-              <CardContent>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyData}>
-                      <XAxis dataKey="name" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
-                      <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
-                      <Bar dataKey="gastos" fill="#ef4444" name="Gastos" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">No hay metas de ahorro</p>
+                )}
               </CardContent>
             </Card>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Wallet className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No hay P&L para este mes</h3>
+            <p className="text-muted-foreground mb-4">Inicializa el P&L para comenzar a registrar tu estado de resultados</p>
+            <Button onClick={initializePNL}>
+              <Plus className="h-4 w-4 mr-2" /> Inicializar P&L
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-            <Card>
-              <CardHeader><CardTitle className="text-lg">Gastos por Categoría</CardTitle></CardHeader>
-              <CardContent>
-                <div className="h-64">
-                  {expensesByCategory.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={expensesByCategory}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          outerRadius={80}
-                          dataKey="value"
-                        >
-                          {expensesByCategory.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8">No hay datos de gastos</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Transaction Dialog */}
-      <Dialog open={transactionDialog} onOpenChange={setTransactionDialog}>
+      {/* Line Item Dialog */}
+      <Dialog open={lineItemDialog} onOpenChange={setLineItemDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nueva Transacción</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingLineItem.item ? 'Editar Línea' : 'Nueva Línea'}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <Button variant={transType === 'income' ? 'default' : 'outline'} className="flex-1" onClick={() => setTransType('income')}>Ingreso</Button>
-              <Button variant={transType === 'expense' ? 'default' : 'outline'} className="flex-1" onClick={() => setTransType('expense')}>Gasto</Button>
+            <div>
+              <Label>Nombre del Concepto</Label>
+              <Input 
+                value={lineItemName} 
+                onChange={(e) => setLineItemName(e.target.value)}
+                placeholder="Ej: Ventas de productos, Sueldos, etc."
+              />
             </div>
-            <div><Label>Monto</Label><Input type="number" value={transAmount} onChange={(e) => setTransAmount(e.target.value)} placeholder="0.00" /></div>
-            <div><Label>Categoría</Label>
-              <Select value={transCategory} onValueChange={(v) => setTransCategory(v as TransactionCategory)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TRANSACTION_CATEGORIES.filter(c => transType === 'income' ? ['salary', 'freelance', 'investment', 'other'].includes(c.value) : true).map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Valor Teórico (Presupuesto)</Label>
+                <Input 
+                  type="number"
+                  value={lineItemTheoretical} 
+                  onChange={(e) => setLineItemTheoretical(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <Label>Valor Real</Label>
+                <Input 
+                  type="number"
+                  value={lineItemReal} 
+                  onChange={(e) => setLineItemReal(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
             </div>
-            <div><Label>Descripción</Label><Input value={transDescription} onChange={(e) => setTransDescription(e.target.value)} placeholder="Opcional" /></div>
-            <div><Label>Fecha</Label><Input type="date" value={transDate} onChange={(e) => setTransDate(e.target.value)} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTransactionDialog(false)}>Cancelar</Button>
-            <Button onClick={handleSaveTransaction} disabled={!transAmount}>Guardar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Savings Dialog */}
-      <Dialog open={savingsDialog} onOpenChange={setSavingsDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nueva Meta de Ahorro</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div><Label>Nombre</Label><Input value={savingsName} onChange={(e) => setSavingsName(e.target.value)} placeholder="Ej: Vacaciones" /></div>
-            <div><Label>Monto objetivo</Label><Input type="number" value={savingsTarget} onChange={(e) => setSavingsTarget(e.target.value)} placeholder="0.00" /></div>
-            <div><Label>Monto actual (opcional)</Label><Input type="number" value={savingsCurrent} onChange={(e) => setSavingsCurrent(e.target.value)} placeholder="0.00" /></div>
-            <div><Label>Fecha límite (opcional)</Label><Input type="date" value={savingsDeadline} onChange={(e) => setSavingsDeadline(e.target.value)} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSavingsDialog(false)}>Cancelar</Button>
-            <Button onClick={handleSaveSavings} disabled={!savingsName || !savingsTarget}>Guardar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Budget Dialog */}
-      <Dialog open={budgetDialog} onOpenChange={setBudgetDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nuevo Presupuesto</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div><Label>Categoría</Label>
-              <Select value={budgetCategory} onValueChange={(v) => setBudgetCategory(v as TransactionCategory)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TRANSACTION_CATEGORIES.filter(c => !['salary', 'freelance', 'investment'].includes(c.value)).map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>Límite mensual</Label><Input type="number" value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} placeholder="0.00" /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBudgetDialog(false)}>Cancelar</Button>
-            <Button onClick={handleSaveBudget} disabled={!budgetLimit}>Guardar</Button>
+            <Button variant="outline" onClick={() => setLineItemDialog(false)}>Cancelar</Button>
+            <Button onClick={saveLineItem} disabled={!lineItemName.trim()}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
