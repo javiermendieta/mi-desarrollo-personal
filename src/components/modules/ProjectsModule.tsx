@@ -1429,22 +1429,10 @@ export function ProjectsModule() {
             <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-orange-100 rounded-lg"><TrendingUp className="h-5 w-5 text-orange-600" /></div><div><p className="text-2xl font-bold">{monthlyStats.contactedCount}</p><p className="text-sm text-muted-foreground">Contactados</p></div></div></CardContent></Card>
           </div>
 
-          {/* Pipeline Board - Horizontal Scroll with visible scrollbar */}
-          <div className="w-full overflow-hidden">
-            <div 
-              className="overflow-x-auto pb-4 w-full
-                [&::-webkit-scrollbar]:h-3 
-                [&::-webkit-scrollbar-track]:bg-muted 
-                [&::-webkit-scrollbar-track]:rounded-full 
-                [&::-webkit-scrollbar-thumb]:bg-primary/40 
-                [&::-webkit-scrollbar-thumb]:rounded-full 
-                [&::-webkit-scrollbar-thumb:hover]:bg-primary/60"
-              style={{ 
-                scrollbarWidth: 'auto', 
-                scrollbarColor: 'hsl(var(--primary) / 0.4) hsl(var(--muted))' 
-              }}
-            >
-              <div className="flex gap-4" style={{ width: 'max-content', minWidth: '100%' }}>
+          {/* Pipeline Board - Horizontal Scroll */}
+          <div className="w-full">
+            <div className="pipeline-scroll-container">
+              <div className="flex gap-4" style={{ width: 'calc(288px * 7 + 24px * 6)', minWidth: '100%' }}>
                 {stages.map((stage) => {
                   const stageLeads = commercialLeads.filter(l => l.status === stage);
                   const config = leadStatusConfig[stage];
@@ -1466,9 +1454,9 @@ export function ProjectsModule() {
             </div>
             
             {/* Scroll hint */}
-            <div className="flex items-center justify-center gap-2 mt-1 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground bg-muted/30 rounded">
               <ChevronLeft className="h-4 w-4" />
-              <span>← Desliza para ver más etapas →</span>
+              <span>← Desliza horizontalmente para ver todas las etapas →</span>
               <ChevronRight className="h-4 w-4" />
             </div>
           </div>
