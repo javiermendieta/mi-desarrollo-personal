@@ -18,6 +18,7 @@ import { ProjectsModule } from '@/components/modules/ProjectsModule';
 import { AIAssistant } from '@/components/AIAssistant';
 import { AuthForm } from '@/components/AuthForm';
 import { useAppStore } from '@/lib/store';
+import { useHydration } from '@/hooks/useHydration';
 
 // Helper para verificar si hay datos en localStorage
 function hasLocalData(): boolean {
@@ -52,8 +53,9 @@ export default function Home() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const importAllData = useAppStore((s) => s.importAllData);
+  const isHydrated = useHydration();
 
-  console.log('=== Home render ===', { isAIOpen, activeSection });
+  console.log('=== Home render ===', { isAIOpen, activeSection, isHydrated });
 
   useEffect(() => {
     checkAuth();
@@ -185,7 +187,8 @@ export default function Home() {
     }
   };
 
-  if (isLoading) {
+  // Mostrar loading si está cargando autenticación O si el store no está hidratado
+  if (isLoading || !isHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
