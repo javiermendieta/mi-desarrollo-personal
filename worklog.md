@@ -47,7 +47,41 @@ Stage Summary:
 - Líneas editables: agregar, modificar, eliminar cuentas por sección
 - Plan de cuentas por sección del P&L
 - Transacciones en Cashflow alimentan el Real automáticamente
-- Deploy disparado: commit f0067d0
+- Deploy disparado: commit d57183a
 - NOTA: Error de conexión a Supabase por IPv4 - Vercel necesita IPv4 Pooler o Supabase debe estar en plan Pro
+
+---
+Task ID: 4 - Agregar columnas % Teórico y % Real
+Agent: Super Z
+Task: Agregar columnas de porcentaje para Teórico y Real en cada línea del P&L
+
+Work Log:
+- Agregadas columnas % Teo y % Real en el header del P&L
+- Actualizado grid a 14 columnas para acomodar las nuevas columnas
+- Modificadas funciones getPercentOfSalesTheoretical y getPercentOfSalesReal
+- Actualizado tailwind.config.ts con gridTemplateColumns 14
+
+Stage Summary:
+- Nueva estructura: Cuenta | Teórico | % Teo | Real | % Real | Desvío $ | Desvío % | % Venta
+- Deploy: commit d57183a
+
+---
+Task ID: 5 - Fix persistencia proyectos y visor PDFs
+Agent: Super Z
+Task: Arreglar problema de datos que se pierden al refrescar y PDFs que no se visualizan
+
+Work Log:
+- Identificado problema: localStorage tiene límite de 5MB, archivos PDF en base64 exceden el límite
+- Instalado localforage para usar IndexedDB (sin límite práctico)
+- Creado src/lib/fileStorage.ts con funciones para guardar/cargar archivos en IndexedDB
+- Modificado ProjectsModule para guardar archivos en IndexedDB y solo referencias en localStorage
+- Mejorado visor de PDFs usando blob URL en lugar de data URL directa
+
+Stage Summary:
+- Archivos grandes ahora se guardan en IndexedDB
+- Los datos de proyectos persisten correctamente al refrescar
+- PDFs se visualizan correctamente en iframe con blob URL
+- Agregado botón "Abrir en nueva pestaña" para documentos
+- Deploy: commit 63beaee
 
 ---

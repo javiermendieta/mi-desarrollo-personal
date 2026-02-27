@@ -21,6 +21,7 @@ import {
 import { useAppStore } from '@/lib/store';
 import { format, startOfDay, isToday, differenceInDays, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useMemo } from 'react';
 
 interface DashboardProps {
   onNavigate: (section: string) => void;
@@ -34,14 +35,19 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     goals,
     habits,
     transactions,
+    accountPlan,
+    pnlData,
     hydrationLogs,
     sleepLogs,
     diaryEntries,
     meditationSessions,
+    projects,
+    commercialLeads,
   } = useAppStore();
 
   const today = startOfDay(new Date());
   const todayStr = format(today, 'yyyy-MM-dd');
+  const currentMonth = format(today, 'yyyy-MM');
 
   // Today's events
   const todayEvents = events.filter((e) => {
@@ -91,18 +97,29 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     ? Math.max(...habits.map((h) => getHabitStreak(h.id)))
     : 0;
 
-  // Finance summary
-  const currentMonth = format(today, 'yyyy-MM');
+  // Finance summary - usar el nuevo sistema con accountPlan
   const monthTransactions = transactions.filter((t) =>
     t.date.startsWith(currentMonth)
   );
+  
+  // Calcular ingresos y gastos usando accountPlan
   const monthIncome = monthTransactions
-    .filter((t) => t.type === 'income')
+    .filter((t) => {
+      const account = accountPlan.find(a => a.id === t.accountId);
+      return account?.type === 'income';
+    })
     .reduce((acc, t) => acc + t.amount, 0);
+    
   const monthExpenses = monthTransactions
-    .filter((t) => t.type === 'expense')
+    .filter((t) => {
+      const account = accountPlan.find(a => a.id === t.accountId);
+      return account?.type === 'expense';
+    })
     .reduce((acc, t) => acc + t.amount, 0);
 
+  // P&L data for dashboard
+  const currentPNL = pnlData.find(p => p.period === currentMonth);
+  
   // Hydration today
   const hydrationToday = hydrationLogs.find((l) => l.date === todayStr);
 
@@ -132,6 +149,15 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const lastDiaryEntry = diaryEntries.length > 0
     ? diaryEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
     : null;
+
+  // Projects summary
+  const activeProjects = projects.filter(p => p.status === 'active');
+  const completedProjects = projects.filter(p => p.status === 'completed');
+  
+  // Commercial pipeline summary
+  const activeLeads = commercialLeads.filter(l => !['won', 'lost'].includes(l.status));
+  const wonLeads = commercialLeads.filter(l => l.status === 'won');
+  const pipelineValue = activeLeads.reduce((sum, l) => sum + (l.value || 0), 0);
 
   return (
     <div className="space-y-6">
