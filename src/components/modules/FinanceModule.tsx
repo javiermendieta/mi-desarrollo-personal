@@ -33,6 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Wallet, Plus, Trash2, TrendingUp, TrendingDown, PiggyBank, Target, DollarSign } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import type { Transaction, SavingsGoal, Budget, TransactionCategory } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, subMonths } from 'date-fns';
@@ -228,11 +229,159 @@ export function FinanceModule() {
 
       <Tabs defaultValue="transactions" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="pnl">P&L</TabsTrigger>
           <TabsTrigger value="transactions">Transacciones</TabsTrigger>
           <TabsTrigger value="budgets">Presupuestos</TabsTrigger>
           <TabsTrigger value="savings">Ahorros</TabsTrigger>
           <TabsTrigger value="analytics">Análisis</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pnl" className="space-y-4">
+          {/* P&L Summary */}
+          <Card className="border-2">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Estado de Pérdidas y Ganancias - {format(new Date(), 'MMMM yyyy', { locale: es })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Ingresos */}
+                <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <h3 className="font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Ingresos
+                  </h3>
+                  <div className="space-y-2">
+                    {TRANSACTION_CATEGORIES
+                      .filter(c => ['salary', 'freelance', 'investment', 'other'].includes(c.value))
+                      .map(cat => {
+                        const amount = monthTransactions
+                          .filter(t => t.type === 'income' && t.category === cat.value)
+                          .reduce((a, t) => a + t.amount, 0);
+                        if (amount === 0) return null;
+                        return (
+                          <div key={cat.value} className="flex justify-between">
+                            <span className="text-sm">{cat.label}</span>
+                            <span className="font-medium text-green-600">+${amount.toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                    <div className="flex justify-between pt-2 border-t border-green-200 dark:border-green-800">
+                      <span className="font-semibold">Total Ingresos</span>
+                      <span className="font-bold text-green-600 text-lg">${totalIncome.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gastos */}
+                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
+                  <h3 className="font-semibold text-red-700 dark:text-red-400 mb-3 flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4" />
+                    Gastos
+                  </h3>
+                  <div className="space-y-2">
+                    {TRANSACTION_CATEGORIES
+                      .filter(c => !['salary', 'freelance', 'investment'].includes(c.value))
+                      .map(cat => {
+                        const amount = monthTransactions
+                          .filter(t => t.type === 'expense' && t.category === cat.value)
+                          .reduce((a, t) => a + t.amount, 0);
+                        if (amount === 0) return null;
+                        return (
+                          <div key={cat.value} className="flex justify-between">
+                            <span className="text-sm flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                              {cat.label}
+                            </span>
+                            <span className="font-medium text-red-600">-${amount.toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                    <div className="flex justify-between pt-2 border-t border-red-200 dark:border-red-800">
+                      <span className="font-semibold">Total Gastos</span>
+                      <span className="font-bold text-red-600 text-lg">-${totalExpenses.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resultado Neto */}
+                <div className={`p-4 rounded-lg ${balance >= 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-lg">Resultado Neto</span>
+                    <span className={`font-bold text-2xl ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {balance >= 0 ? '+' : ''}${balance.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {balance >= 0 ? '✓ Superávit este mes' : '⚠ Déficit este mes'}
+                  </p>
+                </div>
+
+                {/* Ratio de Ahorro */}
+                {totalIncome > 0 && (
+                  <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Ratio de Ahorro</span>
+                      <span className="font-bold text-blue-600">
+                        {((balance / totalIncome) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={Math.max(0, (balance / totalIncome) * 100)} 
+                      className="h-2 mt-2" 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Recomendado: ≥20% de los ingresos
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Comparison */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Comparación Mensual</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2">Mes</th>
+                      <th className="text-right py-2">Ingresos</th>
+                      <th className="text-right py-2">Gastos</th>
+                      <th className="text-right py-2">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {last6Months.map(month => {
+                      const monthStr = format(month, 'yyyy-MM');
+                      const monthTrans = transactions.filter(t => format(new Date(t.date), 'yyyy-MM') === monthStr);
+                      const income = monthTrans.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
+                      const expense = monthTrans.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
+                      const bal = income - expense;
+                      const isCurrentMonth = monthStr === currentMonth;
+                      return (
+                        <tr key={monthStr} className={cn("border-b", isCurrentMonth && "bg-muted/50 font-medium")}>
+                          <td className="py-2">{format(month, 'MMMM yyyy', { locale: es })}</td>
+                          <td className="text-right text-green-600">${income.toLocaleString()}</td>
+                          <td className="text-right text-red-600">${expense.toLocaleString()}</td>
+                          <td className={cn("text-right font-medium", bal >= 0 ? 'text-green-600' : 'text-red-600')}>
+                            {bal >= 0 ? '+' : ''}${bal.toLocaleString()}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="transactions" className="space-y-4">
           <Card>

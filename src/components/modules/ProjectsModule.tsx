@@ -1423,103 +1423,63 @@ export function ProjectsModule() {
           <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-orange-100 rounded-lg"><TrendingUp className="h-5 w-5 text-orange-600" /></div><div><p className="text-2xl font-bold">{monthlyStats.contactedCount}</p><p className="text-sm text-muted-foreground">Contactados</p></div></div></CardContent></Card>
         </div>
 
-        {/* Pipeline Board - Horizontal Scroll (sin DndContext) */}
-        <div className="w-full">
-          <div 
-            className="overflow-x-auto overflow-y-visible"
-            style={{ 
-              overscrollBehaviorX: 'contain',
-              WebkitOverflowScrolling: 'touch'
-            }}
-          >
-            <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
-              {stages.map((stage) => {
-                const stageLeads = commercialLeads.filter(l => l.status === stage);
-                const config = leadStatusConfig[stage];
-                const stageValue = stageLeads.reduce((sum, l) => sum + (l.value || 0), 0);
-                
-                return (
-                  <div
-                    key={stage}
-                    className="flex-shrink-0 w-72"
-                  >
-                    {/* Stage Header */}
-                    <div className={cn("mb-3 p-3 rounded-lg border-2", config.color, config.borderColor)}>
-                      <div className="flex items-center justify-between">
-                        <Badge className={config.color}>{config.label}</Badge>
-                        <Badge variant="secondary">{stageLeads.length}</Badge>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold">${stageValue.toLocaleString()}</span>
-                        <span className="text-xs text-muted-foreground">{stageLeads.length} leads</span>
-                      </div>
-                    </div>
-
-                    {/* Leads List */}
-                    <div className="space-y-2 min-h-[100px]">
-                      {stageLeads.map((lead) => (
-                        <Card key={lead.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                          <CardContent className="p-3">
-                            <div className="flex items-start justify-between">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium truncate">{lead.name}</p>
-                                {lead.company && <p className="text-sm text-muted-foreground truncate">{lead.company}</p>}
-                                {lead.value && (
-                                  <p className="text-sm font-semibold text-green-600 mt-1">${lead.value.toLocaleString()}</p>
-                                )}
-                                {lead.nextFollowUp && (
-                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {format(parseISO(lead.nextFollowUp), 'd MMM', { locale: es })}
-                                  </p>
-                                )}
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0">
-                                    <MoreVertical className="h-3 w-3" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                  <DropdownMenuItem onClick={() => handleEditLead(lead)}>
-                                    <Edit className="h-4 w-4 mr-2" />Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => deleteCommercialLead(lead.id)} className="text-destructive">
-                                    <Trash2 className="h-4 w-4 mr-2" />Eliminar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={(e) => e.preventDefault()}>
-                                    <span className="text-sm text-muted-foreground">Mover a:</span>
-                                  </DropdownMenuItem>
-                                  {stages.filter(s => s !== stage).map((s) => (
-                                    <DropdownMenuItem key={s} onClick={() => updateCommercialLead(lead.id, { status: s })}>
-                                      <Badge className={cn("mr-2", leadStatusConfig[s].color)}>{leadStatusConfig[s].label}</Badge>
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                      {stageLeads.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-                          Sin leads
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        {/* Pipeline Board - Horizontal Scroll with Drag & Drop */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="w-full">
+            <div 
+              className="overflow-x-auto overflow-y-visible"
+              style={{ 
+                overscrollBehaviorX: 'contain',
+                WebkitOverflowScrolling: 'touch'
+              }}
+            >
+              <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
+                {stages.map((stage) => {
+                  const stageLeads = commercialLeads.filter(l => l.status === stage);
+                  const config = leadStatusConfig[stage];
+                  const stageValue = stageLeads.reduce((sum, l) => sum + (l.value || 0), 0);
+                  
+                  return (
+                    <DroppableColumn
+                      key={stage}
+                      stage={stage}
+                      config={config}
+                      stageLeads={stageLeads}
+                      stageValue={stageValue}
+                      onEditLead={handleEditLead}
+                      onDeleteLead={deleteCommercialLead}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Scroll hint */}
+            <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground bg-muted/30 rounded mt-2">
+              <ChevronLeft className="h-4 w-4" />
+              <span>← Arrastra los leads entre columnas o usa el menú →</span>
+              <ChevronRight className="h-4 w-4" />
             </div>
           </div>
-          
-          {/* Scroll hint */}
-          <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground bg-muted/30 rounded mt-2">
-            <ChevronLeft className="h-4 w-4" />
-            <span>← Desliza horizontalmente para ver todas las etapas →</span>
-            <ChevronRight className="h-4 w-4" />
-          </div>
-        </div>
+
+          {/* Drag Overlay */}
+          <DragOverlay>
+            {activeLead ? (
+              <Card className="shadow-lg ring-2 ring-primary">
+                <CardContent className="p-3">
+                  <p className="font-medium">{activeLead.name}</p>
+                  {activeLead.company && <p className="text-sm text-muted-foreground">{activeLead.company}</p>}
+                  {activeLead.value && <p className="text-sm font-semibold text-green-600">${activeLead.value.toLocaleString()}</p>}
+                </CardContent>
+              </Card>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     );
   };
