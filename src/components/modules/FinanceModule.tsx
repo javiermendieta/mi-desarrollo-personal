@@ -159,8 +159,9 @@ export function FinanceModule() {
     return { netSales, contributionMargin, profit };
   }, [sectionTotals]);
 
-  // Total gross sales for % calculations
-  const totalGrossSales = sectionTotals['gross_sales'].real || 1;
+  // Total gross sales for % calculations (both theoretical and real)
+  const totalGrossSalesReal = sectionTotals['gross_sales'].real || 1;
+  const totalGrossSalesTheoretical = sectionTotals['gross_sales'].theoretical || 1;
 
   // Dialog states
   const [accountDialog, setAccountDialog] = useState(false);
@@ -306,8 +307,12 @@ export function FinanceModule() {
     return { amount: deviationAmount, percent: deviationPercent };
   };
 
-  const getPercentOfSales = (value: number) => {
-    return totalGrossSales !== 0 ? (value / totalGrossSales) * 100 : 0;
+  const getPercentOfSalesReal = (value: number) => {
+    return totalGrossSalesReal !== 0 ? (value / totalGrossSalesReal) * 100 : 0;
+  };
+
+  const getPercentOfSalesTheoretical = (value: number) => {
+    return totalGrossSalesTheoretical !== 0 ? (value / totalGrossSalesTheoretical) * 100 : 0;
   };
 
   const toggleSection = (sectionId: PNLSectionType) => {
@@ -332,7 +337,8 @@ export function FinanceModule() {
     const config = SECTION_CONFIG[sectionType];
     const total = sectionTotals[sectionType];
     const deviation = getDeviation(total.theoretical, total.real);
-    const percentOfSales = getPercentOfSales(total.real);
+    const percentOfSalesReal = getPercentOfSalesReal(total.real);
+  const percentOfSalesTheoretical = getPercentOfSalesTheoretical(total.theoretical);
     const isExpanded = expandedSections.has(sectionType);
     const accounts = getAccountsBySection(sectionType);
 
@@ -368,13 +374,15 @@ export function FinanceModule() {
         {isExpanded && (
           <div className="border-t">
             {/* Header Row */}
-            <div className="grid grid-cols-12 gap-2 p-2 bg-black/5 text-xs font-medium text-muted-foreground">
-              <div className="col-span-3">Cuenta</div>
+            <div className="grid grid-cols-14 gap-1 p-2 bg-black/5 text-xs font-medium text-muted-foreground">
+              <div className="col-span-2">Cuenta</div>
               <div className="col-span-2 text-right">Teórico</div>
+              <div className="col-span-1 text-right">% Teo</div>
               <div className="col-span-2 text-right">Real</div>
+              <div className="col-span-1 text-right">% Real</div>
               <div className="col-span-2 text-right">Desvío $</div>
               <div className="col-span-1 text-right">Desvío %</div>
-              <div className="col-span-1 text-right">% Venta</div>
+              <div className="col-span-2 text-right">% Venta</div>
               <div className="col-span-1"></div>
             </div>
 
@@ -383,12 +391,13 @@ export function FinanceModule() {
               const theoretical = currentPNL?.accountPlans.find(ap => ap.accountId === account.id)?.theoretical || 0;
               const real = realValuesByAccount[account.id] || 0;
               const accountDeviation = getDeviation(theoretical, real);
-              const accountPercentOfSales = getPercentOfSales(real);
+              const accountPercentOfSalesReal = getPercentOfSalesReal(real);
+              const accountPercentOfSalesTheoretical = getPercentOfSalesTheoretical(theoretical);
 
               return (
-                <div key={account.id} className="grid grid-cols-12 gap-2 p-2 border-t items-center hover:bg-black/5">
-                  <div className="col-span-3">
-                    <div className="font-medium">{account.name}</div>
+                <div key={account.id} className="grid grid-cols-14 gap-1 p-2 border-t items-center hover:bg-black/5">
+                  <div className="col-span-2">
+                    <div className="font-medium text-sm">{account.name}</div>
                     {account.code && <div className="text-xs text-muted-foreground">{account.code}</div>}
                   </div>
                   <div className="col-span-2 text-right">
@@ -397,22 +406,28 @@ export function FinanceModule() {
                         type="number"
                         value={theoretical}
                         onChange={(e) => updateTheoretical(account.id, parseFloat(e.target.value) || 0)}
-                        className="h-7 w-24 ml-auto text-right"
+                        className="h-7 w-20 ml-auto text-right text-sm"
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
                       <span>0</span>
                     )}
                   </div>
-                  <div className="col-span-2 text-right font-medium">{formatCurrency(real)}</div>
-                  <div className={cn("col-span-2 text-right", accountDeviation.amount >= 0 ? 'text-green-600' : 'text-red-600')}>
+                  <div className="col-span-1 text-right text-xs text-muted-foreground">
+                    {accountPercentOfSalesTheoretical.toFixed(1)}%
+                  </div>
+                  <div className="col-span-2 text-right font-medium text-sm">{formatCurrency(real)}</div>
+                  <div className="col-span-1 text-right text-xs text-muted-foreground">
+                    {accountPercentOfSalesReal.toFixed(1)}%
+                  </div>
+                  <div className={cn("col-span-2 text-right text-sm", accountDeviation.amount >= 0 ? 'text-green-600' : 'text-red-600')}>
                     {formatCurrency(accountDeviation.amount)}
                   </div>
                   <div className={cn("col-span-1 text-right text-xs", accountDeviation.percent >= 0 ? 'text-green-600' : 'text-red-600')}>
                     {formatPercent(accountDeviation.percent)}
                   </div>
-                  <div className="col-span-1 text-right text-xs text-muted-foreground">
-                    {accountPercentOfSales.toFixed(1)}%
+                  <div className="col-span-2 text-right text-xs text-muted-foreground">
+                    {accountPercentOfSalesReal.toFixed(1)}%
                   </div>
                   <div className="col-span-1 flex justify-end gap-1">
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openAccountDialog(account)}>
@@ -436,17 +451,19 @@ export function FinanceModule() {
             </div>
 
             {/* Section Total */}
-            <div className="grid grid-cols-12 gap-2 p-2 border-t bg-black/10 font-semibold">
-              <div className="col-span-3">Total {config.label}</div>
+            <div className="grid grid-cols-14 gap-1 p-2 border-t bg-black/10 font-semibold">
+              <div className="col-span-2">Total {config.label}</div>
               <div className="col-span-2 text-right">{formatCurrency(total.theoretical)}</div>
+              <div className="col-span-1 text-right text-xs">{percentOfSalesTheoretical.toFixed(1)}%</div>
               <div className="col-span-2 text-right">{formatCurrency(total.real)}</div>
+              <div className="col-span-1 text-right text-xs">{percentOfSalesReal.toFixed(1)}%</div>
               <div className={cn("col-span-2 text-right", deviation.amount >= 0 ? 'text-green-600' : 'text-red-600')}>
                 {formatCurrency(deviation.amount)}
               </div>
               <div className={cn("col-span-1 text-right text-xs", deviation.percent >= 0 ? 'text-green-600' : 'text-red-600')}>
                 {formatPercent(deviation.percent)}
               </div>
-              <div className="col-span-1 text-right text-xs">{percentOfSales.toFixed(1)}%</div>
+              <div className="col-span-2 text-right text-xs">{percentOfSalesReal.toFixed(1)}%</div>
               <div className="col-span-1"></div>
             </div>
           </div>
@@ -463,21 +480,24 @@ export function FinanceModule() {
     color: string
   ) => {
     const deviation = getDeviation(values.theoretical, values.real);
-    const percentOfSales = getPercentOfSales(values.real);
+    const percentOfSalesReal = getPercentOfSalesReal(values.real);
+    const percentOfSalesTheoretical = getPercentOfSalesTheoretical(values.theoretical);
 
     return (
       <div key={id} className={cn("rounded-lg border p-3", color)}>
-        <div className="grid grid-cols-12 gap-2 items-center">
-          <div className="col-span-3 font-bold text-lg">{label}</div>
+        <div className="grid grid-cols-14 gap-1 items-center">
+          <div className="col-span-2 font-bold text-lg">{label}</div>
           <div className="col-span-2 text-right font-semibold">{formatCurrency(values.theoretical)}</div>
+          <div className="col-span-1 text-right font-semibold text-sm">{percentOfSalesTheoretical.toFixed(1)}%</div>
           <div className="col-span-2 text-right font-semibold">{formatCurrency(values.real)}</div>
+          <div className="col-span-1 text-right font-semibold text-sm">{percentOfSalesReal.toFixed(1)}%</div>
           <div className={cn("col-span-2 text-right font-semibold", deviation.amount >= 0 ? 'text-green-600' : 'text-red-600')}>
             {formatCurrency(deviation.amount)}
           </div>
-          <div className={cn("col-span-1 text-right font-semibold", deviation.percent >= 0 ? 'text-green-600' : 'text-red-600')}>
+          <div className={cn("col-span-1 text-right font-semibold text-sm", deviation.percent >= 0 ? 'text-green-600' : 'text-red-600')}>
             {formatPercent(deviation.percent)}
           </div>
-          <div className="col-span-1 text-right font-semibold">{percentOfSales.toFixed(1)}%</div>
+          <div className="col-span-2 text-right font-semibold text-sm">{percentOfSalesReal.toFixed(1)}%</div>
           <div className="col-span-1"></div>
         </div>
       </div>
@@ -604,13 +624,15 @@ export function FinanceModule() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {/* Column Headers */}
-                <div className="grid grid-cols-12 gap-2 p-2 bg-muted rounded-lg text-sm font-medium">
-                  <div className="col-span-3">Concepto</div>
+                <div className="grid grid-cols-14 gap-1 p-2 bg-muted rounded-lg text-sm font-medium">
+                  <div className="col-span-2">Concepto</div>
                   <div className="col-span-2 text-right">Teórico</div>
+                  <div className="col-span-1 text-right">% Teo</div>
                   <div className="col-span-2 text-right">Real</div>
+                  <div className="col-span-1 text-right">% Real</div>
                   <div className="col-span-2 text-right">Desvío $</div>
                   <div className="col-span-1 text-right">Desvío %</div>
-                  <div className="col-span-1 text-right">% Venta</div>
+                  <div className="col-span-2 text-right">% Venta</div>
                   <div className="col-span-1"></div>
                 </div>
 
