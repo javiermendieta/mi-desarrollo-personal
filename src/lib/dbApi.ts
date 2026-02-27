@@ -6,18 +6,26 @@ export async function saveAccountPlanToDB(account: {
   code?: string;
   name: string;
   type: string;
-  category: string;
-  subcategory?: string;
+  section: string;
+  category?: string;
   order?: number;
   isActive?: boolean;
+  isDefault?: boolean;
 }) {
   const method = account.id ? 'PUT' : 'POST';
   const res = await fetch('/api/account-plan', {
     method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(account),
+    body: JSON.stringify({
+      ...account,
+      category: account.category || account.section,
+    }),
   });
-  if (!res.ok) throw new Error('Error saving account plan');
+  if (!res.ok) {
+    const error = await res.text();
+    console.error('Error saving account plan:', error);
+    throw new Error('Error saving account plan');
+  }
   return res.json();
 }
 
@@ -38,7 +46,11 @@ export async function savePNLToDB(data: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Error saving P&L');
+  if (!res.ok) {
+    const error = await res.text();
+    console.error('Error saving P&L:', error);
+    throw new Error('Error saving P&L');
+  }
   return res.json();
 }
 
@@ -70,7 +82,11 @@ export async function saveProjectToDB(project: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(project),
   });
-  if (!res.ok) throw new Error('Error saving project');
+  if (!res.ok) {
+    const error = await res.text();
+    console.error('Error saving project:', error);
+    throw new Error('Error saving project');
+  }
   return res.json();
 }
 
@@ -92,6 +108,7 @@ export async function saveCommercialLeadToDB(lead: {
   value?: number;
   probability?: number;
   notes?: string;
+  nextFollowUp?: string;
 }) {
   const method = lead.id ? 'PUT' : 'POST';
   const res = await fetch('/api/commercial-leads', {
@@ -99,7 +116,11 @@ export async function saveCommercialLeadToDB(lead: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(lead),
   });
-  if (!res.ok) throw new Error('Error saving lead');
+  if (!res.ok) {
+    const error = await res.text();
+    console.error('Error saving lead:', error);
+    throw new Error('Error saving lead');
+  }
   return res.json();
 }
 
@@ -118,6 +139,7 @@ export async function saveTransactionToDB(transaction: {
   description?: string;
   date: string;
   accountId?: string;
+  notes?: string;
 }) {
   const method = transaction.id ? 'PUT' : 'POST';
   const res = await fetch('/api/transactions', {
@@ -125,7 +147,11 @@ export async function saveTransactionToDB(transaction: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(transaction),
   });
-  if (!res.ok) throw new Error('Error saving transaction');
+  if (!res.ok) {
+    const error = await res.text();
+    console.error('Error saving transaction:', error);
+    throw new Error('Error saving transaction');
+  }
   return res.json();
 }
 

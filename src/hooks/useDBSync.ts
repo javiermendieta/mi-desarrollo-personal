@@ -4,130 +4,104 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { debounce } from 'lodash';
 
-// Debounced save functions for each data type
-const saveToDB = debounce(async (type: string, data: unknown, userId: string) => {
+// Debounced sync function
+const syncToDB = debounce(async (data: Record<string, unknown[]>) => {
   try {
-    const endpoints: Record<string, string> = {
-      events: '/api/events',
-      sports: '/api/sports',
-      books: '/api/books',
-      goals: '/api/goals',
-      habits: '/api/habits',
-      transactions: '/api/transactions',
-      diaryEntries: '/api/diary',
-      projects: '/api/projects',
-      commercialLeads: '/api/commercial-leads',
-      accountPlan: '/api/account-plan',
-      pnlData: '/api/pnl',
-      sleepLogs: '/api/sleep',
-      hydrationLogs: '/api/hydration',
-      healthEntries: '/api/health',
-      quickNotes: '/api/notes',
-      meditationSessions: '/api/meditation',
-    };
-
-    const endpoint = endpoints[type];
-    if (!endpoint) return;
-
-    // For arrays, we sync the entire array
-    // For single items, we sync that item
-    const res = await fetch(endpoint, {
+    const res = await fetch('/api/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'sync', data, userId }),
+      body: JSON.stringify(data),
     });
-
+    
     if (!res.ok) {
-      console.error(`Error syncing ${type} to DB`);
+      console.error('Error syncing to DB');
+    } else {
+      console.log('Data synced to DB successfully');
     }
   } catch (e) {
-    console.error(`Error in saveToDB for ${type}:`, e);
+    console.error('Error in syncToDB:', e);
   }
-}, 2000); // 2 second debounce
+}, 3000); // 3 second debounce
 
 /**
- * Hook que sincroniza automáticamente los cambios del store con la base de datos.
- * Se activa cada vez que hay un cambio en los datos del store.
+ * Hook que sincroniza automáticamente los datos con la base de datos.
+ * Se activa cuando el usuario cambia datos en cualquier módulo.
  */
 export function useDBSync() {
   const store = useAppStore();
   const isFirstRender = useRef(true);
   const lastSyncedRef = useRef<string>('');
 
-  // Function to sync all data to DB
-  const syncAllToDB = useCallback(async () => {
-    // Skip if no user is logged in (check for userId in cookie)
-    const userId = document.cookie.match(/userId=([^;]+)/)?.[1];
-    if (!userId) return;
-
-    // Create a hash of current state to avoid unnecessary syncs
-    const stateHash = JSON.stringify({
-      projects: store.projects.length,
+  // Create a snapshot of relevant data
+  const getDataSnapshot = useCallback(() => {
+    return JSON.stringify({
       accountPlan: store.accountPlan.length,
-      pnlData: store.pnlData.length,
       transactions: store.transactions.length,
+      pnlData: store.pnlData.length,
+      projects: store.projects.length,
       events: store.events.length,
       habits: store.habits.length,
       goals: store.goals.length,
     });
-
-    if (lastSyncedRef.current === stateHash) return;
-    lastSyncedRef.current = stateHash;
-
-    // Sync each data type
-    const dataToSync = [
-      { key: 'projects', data: store.projects },
-      { key: 'accountPlan', data: store.accountPlan },
-      { key: 'pnlData', data: store.pnlData },
-      { key: 'transactions', data: store.transactions },
-      { key: 'events', data: store.events },
-      { key: 'habits', data: store.habits },
-      { key: 'goals', data: store.goals },
-      { key: 'sports', data: store.sports },
-      { key: 'books', data: store.books },
-      { key: 'diaryEntries', data: store.diaryEntries },
-      { key: 'commercialLeads', data: store.commercialLeads },
-      { key: 'sleepLogs', data: store.sleepLogs },
-      { key: 'hydrationLogs', data: store.hydrationLogs },
-      { key: 'healthEntries', data: store.healthEntries },
-      { key: 'quickNotes', data: store.quickNotes },
-      { key: 'meditationSessions', data: store.meditationSessions },
-    ];
-
-    for (const { key, data } of dataToSync) {
-      if (data && Array.isArray(data) && data.length > 0) {
-        await saveToDB(key, data, userId);
-      }
-    }
   }, [store]);
 
-  // Sync on mount and when data changes
+  // Sync function
+  const sync = useCallback(() => {
+    const snapshot = getDataSnapshot();
+    
+    // Skip if nothing changed
+    if (lastSyncedRef.current === snapshot) return;
+    lastSyncedRef.current = snapshot;
+
+    // Prepare data to sync
+    const dataToSync: Record<string, unknown[]> = {};
+
+    if (store.accountPlan.length > 0) {
+      dataToSync.accountPlan = store.accountPlan;
+    }
+    if (store.transactions.length > 0) {
+      dataToSync.transactions = store.transactions;
+    }
+    if (store.pnlData.length > 0) {
+      dataToSync.pnlData = store.pnlData;
+    }
+    if (store.projects.length > 0) {
+      dataToSync.projects = store.projects;
+    }
+    if (store.events.length > 0) {
+      dataToSync.events = store.events;
+    }
+    if (store.habits.length > 0) {
+      dataToSync.habits = store.habits;
+    }
+    if (store.goals.length > 0) {
+      dataToSync.goals = store.goals;
+    }
+
+    // Only sync if there's data
+    if (Object.keys(dataToSync).length > 0) {
+      syncToDB(dataToSync);
+    }
+  }, [store, getDataSnapshot]);
+
+  // Sync on data changes
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      return; // Skip first render (data is being loaded)
+      return;
     }
 
-    // Debounced sync
-    const timeoutId = setTimeout(() => {
-      syncAllToDB();
-    }, 3000); // 3 second delay after change
-
-    return () => clearTimeout(timeoutId);
+    sync();
   }, [
-    store.projects,
     store.accountPlan,
-    store.pnlData,
     store.transactions,
+    store.pnlData,
+    store.projects,
     store.events,
     store.habits,
     store.goals,
-    store.sports,
-    store.books,
-    store.diaryEntries,
-    store.commercialLeads,
-    syncAllToDB,
+    sync,
   ]);
 
-  return { syncAllToDB };
+  return { sync };
 }

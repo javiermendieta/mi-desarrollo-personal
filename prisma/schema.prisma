@@ -285,18 +285,20 @@ model AccountPlanItem {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
-  code        String
+  code        String?
   name        String
   type        String   // income, expense
-  category    String   // ventas, costos, gastos, etc.
+  section     String   @default("gross_sales") // gross_sales, cost_of_sales, cmv, operating_expenses
+  category    String?  
   subcategory String?
   order       Int      @default(0)
+  isDefault   Boolean  @default(false)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([userId, type])
-  @@index([userId, category])
+  @@index([userId, section])
 }
 
 // Estado de Pérdidas y Ganancias

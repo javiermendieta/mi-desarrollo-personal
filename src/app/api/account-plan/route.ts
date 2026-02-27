@@ -11,8 +11,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const accountPlan = await db.accountPlanItem.findMany({
-      where: { userId },
-      orderBy: { order: 'asc' }
+      where: { 
+        userId,
+        isActive: true 
+      },
+      orderBy: [
+        { section: 'asc' },
+        { order: 'asc' }
+      ]
     });
     return NextResponse.json(accountPlan);
   } catch (error) {
@@ -31,18 +37,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const data = await request.json();
+    
     const account = await db.accountPlanItem.create({
       data: {
         userId,
-        code: data.code,
+        code: data.code || '',
         name: data.name,
-        type: data.type,
-        category: data.category,
-        subcategory: data.subcategory,
+        type: data.type || 'expense',
+        section: data.section || data.category || 'operating_expenses',
+        category: data.category || data.section,
+        subcategory: data.subcategory || null,
         order: data.order || 0,
-        isActive: data.isActive ?? true,
+        isDefault: data.isDefault || false,
+        isActive: true,
       }
     });
+    
     return NextResponse.json(account);
   } catch (error) {
     console.error('Error creating account plan item:', error);
@@ -60,18 +70,24 @@ export async function PUT(request: NextRequest) {
 
   try {
     const data = await request.json();
+    
     const account = await db.accountPlanItem.update({
-      where: { id: data.id, userId },
+      where: { 
+        id: data.id,
+        userId 
+      },
       data: {
         code: data.code,
         name: data.name,
         type: data.type,
-        category: data.category,
+        section: data.section || data.category,
+        category: data.category || data.section,
         subcategory: data.subcategory,
         order: data.order,
-        isActive: data.isActive,
+        isDefault: data.isDefault,
       }
     });
+    
     return NextResponse.json(account);
   } catch (error) {
     console.error('Error updating account plan item:', error);
@@ -95,9 +111,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
     }
 
-    await db.accountPlanItem.delete({
-      where: { id, userId }
+    // Soft delete - marcamos como inactivo
+    await db.accountPlanItem.update({
+      where: { id, userId },
+      data: { isActive: false }
     });
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting account plan item:', error);
