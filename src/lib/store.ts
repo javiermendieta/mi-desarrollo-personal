@@ -8,7 +8,7 @@ import type {
   Goal, Habit, Transaction, SavingsGoal, Budget, SleepLog, HydrationLog,
   HealthEntry, QuickNote, AIConversation, Project, ProjectTask, Milestone,
   SocialMediaPost, CommercialLead, ProjectDocument, ProjectMeeting, ProjectAlert,
-  MedicalAppointment, MedicalTask, PNLData, PNLSection, PNLLineItem,
+  MedicalAppointment, MedicalTask, PNLData, PNLAccountPlan, AccountPlanItem,
 } from '@/types';
 
 const defaultSettings: AppSettings = {
@@ -40,6 +40,7 @@ const defaultData: Omit<AppData, 'settings' | 'aiProfile'> = {
   transactions: [],
   savingsGoals: [],
   budgets: [],
+  accountPlan: [],
   pnlData: [],
   sleepLogs: [],
   hydrationLogs: [],
@@ -101,16 +102,15 @@ interface AppState extends AppData {
   addBudget: (budget: Budget) => void;
   updateBudget: (id: string, budget: Partial<Budget>) => void;
   deleteBudget: (id: string) => void;
+  // Account Plan (Plan de Cuentas)
+  addAccountPlanItem: (account: AccountPlanItem) => void;
+  updateAccountPlanItem: (id: string, account: Partial<AccountPlanItem>) => void;
+  deleteAccountPlanItem: (id: string) => void;
   // P&L
   addPNLData: (pnl: PNLData) => void;
   updatePNLData: (id: string, pnl: Partial<PNLData>) => void;
   deletePNLData: (id: string) => void;
-  addPNLSection: (pnlId: string, section: PNLSection) => void;
-  updatePNLSection: (pnlId: string, sectionId: string, section: Partial<PNLSection>) => void;
-  deletePNLSection: (pnlId: string, sectionId: string) => void;
-  addPNLLineItem: (pnlId: string, sectionId: string, lineItem: PNLLineItem) => void;
-  updatePNLLineItem: (pnlId: string, sectionId: string, lineItemId: string, lineItem: Partial<PNLLineItem>) => void;
-  deletePNLLineItem: (pnlId: string, sectionId: string, lineItemId: string) => void;
+  updatePNLAccountPlan: (pnlId: string, accountId: string, theoretical: number) => void;
   addSleepLog: (log: SleepLog) => void;
   updateSleepLog: (id: string, log: Partial<SleepLog>) => void;
   addHydrationLog: (log: HydrationLog) => void;
@@ -255,17 +255,27 @@ export const useAppStore = create<AppState>()(
       updateBudget: (id, budget) => set((state) => ({ budgets: state.budgets.map((b) => b.id === id ? { ...b, ...budget } : b) })),
       deleteBudget: (id) => set((state) => ({ budgets: state.budgets.filter((b) => b.id !== id) })),
 
+      // Account Plan (Plan de Cuentas)
+      addAccountPlanItem: (account) => set((state) => ({ accountPlan: [...state.accountPlan, account] })),
+      updateAccountPlanItem: (id, account) => set((state) => ({ accountPlan: state.accountPlan.map((a) => a.id === id ? { ...a, ...account, updatedAt: new Date().toISOString() } : a) })),
+      deleteAccountPlanItem: (id) => set((state) => ({ accountPlan: state.accountPlan.filter((a) => a.id !== id) })),
+
       // P&L
       addPNLData: (pnl) => set((state) => ({ pnlData: [...state.pnlData, pnl] })),
       updatePNLData: (id, pnl) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === id ? { ...p, ...pnl, updatedAt: new Date().toISOString() } : p) })),
       deletePNLData: (id) => set((state) => ({ pnlData: state.pnlData.filter((p) => p.id !== id) })),
-      addPNLSection: (pnlId, section) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: [...p.sections, section] } : p) })),
-      updatePNLSection: (pnlId, sectionId, section) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, ...section } : s) } : p) })),
-      deletePNLSection: (pnlId, sectionId) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.filter((s) => s.id !== sectionId) } : p) })),
-      addPNLLineItem: (pnlId, sectionId, lineItem) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, lineItems: [...s.lineItems, lineItem] } : s) } : p) })),
-      updatePNLLineItem: (pnlId, sectionId, lineItemId, lineItem) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, lineItems: s.lineItems.map((l) => l.id === lineItemId ? { ...l, ...lineItem } : l) } : s) } : p) })),
-      deletePNLLineItem: (pnlId, sectionId, lineItemId) => set((state) => ({ pnlData: state.pnlData.map((p) => p.id === pnlId ? { ...p, sections: p.sections.map((s) => s.id === sectionId ? { ...s, lineItems: s.lineItems.filter((l) => l.id !== lineItemId) } : s) } : p) })),
-
+      updatePNLAccountPlan: (pnlId, accountId, theoretical) => set((state) => ({
+        pnlData: state.pnlData.map((p) => {
+          if (p.id !== pnlId) return p;
+          const existingIdx = p.accountPlans.findIndex((ap) => ap.accountId === accountId);
+          if (existingIdx >= 0) {
+            const newAccountPlans = [...p.accountPlans];
+            newAccountPlans[existingIdx] = { accountId, theoretical };
+            return { ...p, accountPlans: newAccountPlans, updatedAt: new Date().toISOString() };
+          }
+          return { ...p, accountPlans: [...p.accountPlans, { accountId, theoretical }], updatedAt: new Date().toISOString() };
+        }),
+      })),
       // Health
       addSleepLog: (log) => set((state) => ({ sleepLogs: [...state.sleepLogs, log] })),
       updateSleepLog: (id, log) => set((state) => ({ sleepLogs: state.sleepLogs.map((l) => l.id === id ? { ...l, ...log } : l) })),
@@ -381,6 +391,7 @@ export const useAppStore = create<AppState>()(
         transactions: data.transactions || [],
         savingsGoals: data.savingsGoals || [],
         budgets: data.budgets || [],
+        accountPlan: data.accountPlan || [],
         pnlData: data.pnlData || [],
         sleepLogs: data.sleepLogs || [],
         hydrationLogs: data.hydrationLogs || [],
