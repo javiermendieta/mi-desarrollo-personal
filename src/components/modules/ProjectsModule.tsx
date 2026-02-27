@@ -295,7 +295,7 @@ export function ProjectsModule() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 3,
       },
     })
   );
@@ -1432,10 +1432,14 @@ export function ProjectsModule() {
         >
           <div className="w-full">
             <div 
-              className="overflow-x-auto overflow-y-visible"
+              className={cn(
+                "overflow-x-auto overflow-y-visible",
+                activeLeadId && "overflow-x-hidden"
+              )}
               style={{ 
                 overscrollBehaviorX: 'contain',
-                WebkitOverflowScrolling: 'touch'
+                WebkitOverflowScrolling: 'touch',
+                touchAction: activeLeadId ? 'none' : 'pan-x pan-y'
               }}
             >
               <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
@@ -1462,7 +1466,7 @@ export function ProjectsModule() {
             {/* Scroll hint */}
             <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground bg-muted/30 rounded mt-2">
               <ChevronLeft className="h-4 w-4" />
-              <span>← Arrastra los leads entre columnas o usa el menú →</span>
+              <span>← Arrastra los leads entre columnas para moverlos →</span>
               <ChevronRight className="h-4 w-4" />
             </div>
           </div>

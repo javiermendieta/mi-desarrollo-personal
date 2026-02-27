@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -14,24 +16,50 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Droplets, Moon, Scale, Footprints, Heart, Activity, Flame } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Trash2, Droplets, Moon, Scale, Footprints, Heart, Activity, Flame, Calendar, Clock, User, MapPin, CheckCircle2, Circle, AlertCircle, Stethoscope } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import type { SleepLog, HydrationLog, HealthEntry } from '@/types';
+import type { SleepLog, HydrationLog, HealthEntry, MedicalAppointment, MedicalTask } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parseISO, isPast, isToday, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { cn } from '@/lib/utils';
+
+const medicalTaskCategoryConfig = {
+  checkup: { label: 'Chequeo', color: 'bg-blue-100 text-blue-700' },
+  exam: { label: 'Análisis', color: 'bg-purple-100 text-purple-700' },
+  medication: { label: 'Medicación', color: 'bg-orange-100 text-orange-700' },
+  specialist: { label: 'Especialista', color: 'bg-green-100 text-green-700' },
+  other: { label: 'Otro', color: 'bg-gray-100 text-gray-700' },
+};
+
+const appointmentStatusConfig = {
+  scheduled: { label: 'Programada', color: 'bg-blue-100 text-blue-700' },
+  completed: { label: 'Completada', color: 'bg-green-100 text-green-700' },
+  cancelled: { label: 'Cancelada', color: 'bg-red-100 text-red-700' },
+};
 
 export function HealthModule() {
   const {
     sleepLogs, addSleepLog, updateSleepLog, deleteSleepLog,
     hydrationLogs, addHydrationLog, updateHydrationLog, deleteHydrationLog,
     healthEntries, addHealthEntry, updateHealthEntry, deleteHealthEntry,
+    medicalAppointments, addMedicalAppointment, updateMedicalAppointment, deleteMedicalAppointment,
+    medicalTasks, addMedicalTask, updateMedicalTask, deleteMedicalTask, toggleMedicalTask,
   } = useAppStore();
 
   const [sleepDialog, setSleepDialog] = useState(false);
   const [hydrationDialog, setHydrationDialog] = useState(false);
   const [healthDialog, setHealthDialog] = useState(false);
+  const [appointmentDialog, setAppointmentDialog] = useState(false);
+  const [taskDialog, setTaskDialog] = useState(false);
 
   const [sleepTime, setSleepTime] = useState('');
   const [wakeTime, setWakeTime] = useState('');
@@ -48,6 +76,23 @@ export function HealthModule() {
   const [healthNotes, setHealthNotes] = useState('');
   const [healthDate, setHealthDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
+  // Medical appointment form
+  const [aptTitle, setAptTitle] = useState('');
+  const [aptDoctor, setAptDoctor] = useState('');
+  const [aptSpecialty, setAptSpecialty] = useState('');
+  const [aptLocation, setAptLocation] = useState('');
+  const [aptDate, setAptDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [aptTime, setAptTime] = useState('10:00');
+  const [aptNotes, setAptNotes] = useState('');
+  const [editingAppointment, setEditingAppointment] = useState<MedicalAppointment | null>(null);
+
+  // Medical task form
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskCategory, setTaskCategory] = useState<'checkup' | 'exam' | 'medication' | 'specialist' | 'other'>('other');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskNotes, setTaskNotes] = useState('');
+  const [editingTask, setEditingTask] = useState<MedicalTask | null>(null);
+
   const today = format(new Date(), 'yyyy-MM-dd');
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
@@ -57,6 +102,14 @@ export function HealthModule() {
   const todaySleep = sleepLogs.find((l) => format(new Date(l.date), 'yyyy-MM-dd') === today);
   const todayHydration = hydrationLogs.find((l) => format(new Date(l.date), 'yyyy-MM-dd') === today);
   const todayHealth = healthEntries.find((e) => format(new Date(e.date), 'yyyy-MM-dd') === today);
+
+  // Medical data
+  const upcomingAppointments = medicalAppointments
+    .filter(a => a.status === 'scheduled')
+    .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
+  
+  const pendingTasks = medicalTasks.filter(t => !t.completed);
+  const completedTasks = medicalTasks.filter(t => t.completed);
 
   // Weekly stats
   const weekSleepLogs = sleepLogs.filter((l) => {
@@ -110,6 +163,11 @@ export function HealthModule() {
       name: format(new Date(e.date), 'd MMM'),
       peso: e.weight,
     }));
+
+  // Calendar data for medical appointments
+  const monthStart = startOfMonth(new Date());
+  const monthEnd = endOfMonth(new Date());
+  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const handleSaveSleep = () => {
     const log: SleepLog = {
@@ -174,6 +232,91 @@ export function HealthModule() {
     }
   };
 
+  const handleSaveAppointment = () => {
+    if (!aptTitle.trim()) return;
+    const appointment: MedicalAppointment = {
+      id: editingAppointment?.id || uuidv4(),
+      title: aptTitle.trim(),
+      doctor: aptDoctor.trim() || undefined,
+      specialty: aptSpecialty.trim() || undefined,
+      location: aptLocation.trim() || undefined,
+      date: aptDate,
+      time: aptTime,
+      notes: aptNotes.trim() || undefined,
+      status: editingAppointment?.status || 'scheduled',
+      createdAt: editingAppointment?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    if (editingAppointment) {
+      updateMedicalAppointment(editingAppointment.id, appointment);
+    } else {
+      addMedicalAppointment(appointment);
+    }
+    setAppointmentDialog(false);
+    resetAppointmentForm();
+  };
+
+  const resetAppointmentForm = () => {
+    setAptTitle('');
+    setAptDoctor('');
+    setAptSpecialty('');
+    setAptLocation('');
+    setAptDate(format(new Date(), 'yyyy-MM-dd'));
+    setAptTime('10:00');
+    setAptNotes('');
+    setEditingAppointment(null);
+  };
+
+  const openEditAppointment = (apt: MedicalAppointment) => {
+    setEditingAppointment(apt);
+    setAptTitle(apt.title);
+    setAptDoctor(apt.doctor || '');
+    setAptSpecialty(apt.specialty || '');
+    setAptLocation(apt.location || '');
+    setAptDate(apt.date);
+    setAptTime(apt.time);
+    setAptNotes(apt.notes || '');
+    setAppointmentDialog(true);
+  };
+
+  const handleSaveTask = () => {
+    if (!taskTitle.trim()) return;
+    const task: MedicalTask = {
+      id: editingTask?.id || uuidv4(),
+      title: taskTitle.trim(),
+      category: taskCategory,
+      dueDate: taskDueDate || undefined,
+      notes: taskNotes.trim() || undefined,
+      completed: editingTask?.completed || false,
+      createdAt: editingTask?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    if (editingTask) {
+      updateMedicalTask(editingTask.id, task);
+    } else {
+      addMedicalTask(task);
+    }
+    setTaskDialog(false);
+    resetTaskForm();
+  };
+
+  const resetTaskForm = () => {
+    setTaskTitle('');
+    setTaskCategory('other');
+    setTaskDueDate('');
+    setTaskNotes('');
+    setEditingTask(null);
+  };
+
+  const openEditTask = (task: MedicalTask) => {
+    setEditingTask(task);
+    setTaskTitle(task.title);
+    setTaskCategory(task.category);
+    setTaskDueDate(task.dueDate || '');
+    setTaskNotes(task.notes || '');
+    setTaskDialog(true);
+  };
+
   return (
     <div className="space-y-4">
       {/* Today's Summary */}
@@ -207,37 +350,42 @@ export function HealthModule() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-950 dark:to-rose-900">
+        <Card className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950 dark:to-teal-900">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pasos Hoy</p>
-                <p className="text-3xl font-bold text-rose-600">{todayHealth?.steps?.toLocaleString() || '-'}</p>
+                <p className="text-sm text-muted-foreground">Próximas Citas</p>
+                <p className="text-3xl font-bold text-teal-600">{upcomingAppointments.length}</p>
+                {upcomingAppointments[0] && (
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{upcomingAppointments[0].title}</p>
+                )}
               </div>
-              <Footprints className="h-10 w-10 text-rose-400" />
+              <Stethoscope className="h-10 w-10 text-teal-400" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
+        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Calorías</p>
-                <p className="text-3xl font-bold text-orange-600">{todayHealth?.calories || '-'}</p>
-                {todayHealth?.weight && (
-                  <p className="text-xs text-muted-foreground mt-1">{todayHealth.weight} kg</p>
+                <p className="text-sm text-muted-foreground">Pendientes Médicos</p>
+                <p className="text-3xl font-bold text-amber-600">{pendingTasks.length}</p>
+                {pendingTasks[0] && (
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{pendingTasks[0].title}</p>
                 )}
               </div>
-              <Flame className="h-10 w-10 text-orange-400" />
+              <AlertCircle className="h-10 w-10 text-amber-400" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="overview">Resumen</TabsTrigger>
+          <TabsTrigger value="appointments">Citas Médicas</TabsTrigger>
+          <TabsTrigger value="tasks">Pendientes</TabsTrigger>
           <TabsTrigger value="sleep">Sueño</TabsTrigger>
           <TabsTrigger value="hydration">Hidratación</TabsTrigger>
           <TabsTrigger value="health">Salud</TabsTrigger>
@@ -269,6 +417,70 @@ export function HealthModule() {
             </CardContent>
           </Card>
 
+          {/* Upcoming appointments and tasks */}
+          {(upcomingAppointments.length > 0 || pendingTasks.length > 0) && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {upcomingAppointments.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-teal-500" />
+                      Próximas Citas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {upcomingAppointments.slice(0, 3).map(apt => (
+                        <div key={apt.id} className="flex items-center gap-3 p-2 rounded bg-muted/50">
+                          <div className="text-center">
+                            <p className="text-sm font-bold">{format(parseISO(apt.date), 'd')}</p>
+                            <p className="text-xs text-muted-foreground">{format(parseISO(apt.date), 'MMM')}</p>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{apt.title}</p>
+                            <p className="text-xs text-muted-foreground">{apt.time} {apt.doctor && `- ${apt.doctor}`}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {pendingTasks.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                      Pendientes Médicos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {pendingTasks.slice(0, 5).map(task => (
+                        <div key={task.id} className="flex items-center gap-3 p-2 rounded bg-muted/50">
+                          <Checkbox
+                            checked={task.completed}
+                            onCheckedChange={() => toggleMedicalTask(task.id)}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{task.title}</p>
+                            {task.dueDate && (
+                              <p className="text-xs text-muted-foreground">{format(parseISO(task.dueDate), 'd MMM yyyy')}</p>
+                            )}
+                          </div>
+                          <Badge className={medicalTaskCategoryConfig[task.category].color}>
+                            {medicalTaskCategoryConfig[task.category].label}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
           {/* Quick Actions */}
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
@@ -293,6 +505,204 @@ export function HealthModule() {
               <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Heart className="h-4 w-4 text-rose-500" />Registrar Salud</CardTitle></CardHeader>
               <CardContent>
                 <Button className="w-full" onClick={() => setHealthDialog(true)}><Plus className="h-4 w-4 mr-2" />Añadir</Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="appointments" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Calendario de Citas Médicas
+            </h3>
+            <Button onClick={() => setAppointmentDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />Nueva Cita
+            </Button>
+          </div>
+
+          {/* Mini Calendar */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
+                  <div key={i} className="text-xs font-medium text-muted-foreground">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {monthDays.map(day => {
+                  const dayAppointments = medicalAppointments.filter(a => a.date === format(day, 'yyyy-MM-dd') && a.status === 'scheduled');
+                  const isTodayDate = isToday(day);
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={cn(
+                        "aspect-square p-1 rounded text-sm relative cursor-pointer hover:bg-muted transition-colors",
+                        isTodayDate && "ring-2 ring-primary",
+                        dayAppointments.length > 0 && "bg-teal-50 dark:bg-teal-950/30"
+                      )}
+                    >
+                      {format(day, 'd')}
+                      {dayAppointments.length > 0 && (
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-teal-500" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Appointments List */}
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Todas las Citas</CardTitle></CardHeader>
+            <CardContent>
+              {medicalAppointments.length > 0 ? (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {medicalAppointments
+                    .sort((a, b) => new Date(b.date + ' ' + b.time).getTime() - new Date(a.date + ' ' + a.time).getTime())
+                    .map(apt => (
+                      <div key={apt.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted">
+                        <div className="text-center min-w-[50px]">
+                          <p className="text-lg font-bold">{format(parseISO(apt.date), 'd')}</p>
+                          <p className="text-xs text-muted-foreground">{format(parseISO(apt.date), 'MMM yyyy')}</p>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{apt.title}</p>
+                            <Badge className={appointmentStatusConfig[apt.status].color}>
+                              {appointmentStatusConfig[apt.status].label}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-3 mt-1 text-sm text-muted-foreground">
+                            {apt.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{apt.time}</span>}
+                            {apt.doctor && <span className="flex items-center gap-1"><User className="h-3 w-3" />{apt.doctor}</span>}
+                            {apt.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{apt.location}</span>}
+                          </div>
+                          {apt.notes && <p className="text-xs text-muted-foreground mt-1">{apt.notes}</p>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEditAppointment(apt)}>Editar</Button>
+                          {apt.status === 'scheduled' && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => updateMedicalAppointment(apt.id, { status: 'completed' })}
+                              className="text-green-600"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => deleteMedicalAppointment(apt.id)} className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">No hay citas médicas registradas</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Pendientes Médicos
+            </h3>
+            <Button onClick={() => setTaskDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />Nuevo Pendiente
+            </Button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Pending Tasks */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Circle className="h-4 w-4 text-amber-500" />
+                  Pendientes ({pendingTasks.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingTasks.length > 0 ? (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {pendingTasks.map(task => (
+                      <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                        <Checkbox
+                          checked={task.completed}
+                          onCheckedChange={() => toggleMedicalTask(task.id)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{task.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge className={medicalTaskCategoryConfig[task.category].color}>
+                              {medicalTaskCategoryConfig[task.category].label}
+                            </Badge>
+                            {task.dueDate && (
+                              <span className={cn(
+                                "text-xs",
+                                isPast(parseISO(task.dueDate)) && !isToday(parseISO(task.dueDate)) && "text-red-500"
+                              )}>
+                                {format(parseISO(task.dueDate), 'd MMM yyyy')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditTask(task)}>
+                            <span className="text-xs">✎</span>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteMedicalTask(task.id)}>
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">No hay pendientes</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Completed Tasks */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Completados ({completedTasks.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {completedTasks.length > 0 ? (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {completedTasks.map(task => (
+                      <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg bg-muted/30 opacity-60">
+                        <Checkbox
+                          checked={task.completed}
+                          onCheckedChange={() => toggleMedicalTask(task.id)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium line-through">{task.title}</p>
+                          <Badge className={medicalTaskCategoryConfig[task.category].color}>
+                            {medicalTaskCategoryConfig[task.category].label}
+                          </Badge>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteMedicalTask(task.id)}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-4">No hay tareas completadas</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -495,6 +905,55 @@ export function HealthModule() {
             <div><Label>Notas (opcional)</Label><Input value={healthNotes} onChange={(e) => setHealthNotes(e.target.value)} /></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setHealthDialog(false)}>Cancelar</Button><Button onClick={handleSaveHealth}>Guardar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Medical Appointment Dialog */}
+      <Dialog open={appointmentDialog} onOpenChange={(open) => { setAppointmentDialog(open); if (!open) resetAppointmentForm(); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingAppointment ? 'Editar Cita' : 'Nueva Cita Médica'}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Título *</Label><Input value={aptTitle} onChange={(e) => setAptTitle(e.target.value)} placeholder="Ej: Consulta con cardiólogo" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Fecha</Label><Input type="date" value={aptDate} onChange={(e) => setAptDate(e.target.value)} /></div>
+              <div><Label>Hora</Label><Input type="time" value={aptTime} onChange={(e) => setAptTime(e.target.value)} /></div>
+            </div>
+            <div><Label>Doctor/Médico</Label><Input value={aptDoctor} onChange={(e) => setAptDoctor(e.target.value)} placeholder="Dr. Pérez" /></div>
+            <div><Label>Especialidad</Label><Input value={aptSpecialty} onChange={(e) => setAptSpecialty(e.target.value)} placeholder="Cardiología" /></div>
+            <div><Label>Ubicación</Label><Input value={aptLocation} onChange={(e) => setAptLocation(e.target.value)} placeholder="Hospital X, Consultorio Y" /></div>
+            <div><Label>Notas</Label><Input value={aptNotes} onChange={(e) => setAptNotes(e.target.value)} placeholder="Llevar estudios previos" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setAppointmentDialog(false); resetAppointmentForm(); }}>Cancelar</Button>
+            <Button onClick={handleSaveAppointment} disabled={!aptTitle.trim()}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Medical Task Dialog */}
+      <Dialog open={taskDialog} onOpenChange={(open) => { setTaskDialog(open); if (!open) resetTaskForm(); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingTask ? 'Editar Pendiente' : 'Nuevo Pendiente Médico'}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Título *</Label><Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="Ej: Ir al dentista" /></div>
+            <div>
+              <Label>Categoría</Label>
+              <Select value={taskCategory} onValueChange={(v) => setTaskCategory(v as typeof taskCategory)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(medicalTaskCategoryConfig).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Fecha límite (opcional)</Label><Input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} /></div>
+            <div><Label>Notas</Label><Input value={taskNotes} onChange={(e) => setTaskNotes(e.target.value)} placeholder="Detalles adicionales" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTaskDialog(false); resetTaskForm(); }}>Cancelar</Button>
+            <Button onClick={handleSaveTask} disabled={!taskTitle.trim()}>Guardar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

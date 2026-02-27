@@ -227,7 +227,7 @@ export function FinanceModule() {
         </Card>
       </div>
 
-      <Tabs defaultValue="transactions" className="space-y-4">
+      <Tabs defaultValue="pnl" className="space-y-4">
         <TabsList>
           <TabsTrigger value="pnl">P&L</TabsTrigger>
           <TabsTrigger value="transactions">Transacciones</TabsTrigger>

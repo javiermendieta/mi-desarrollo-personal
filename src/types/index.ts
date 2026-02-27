@@ -217,6 +217,33 @@ export interface HealthEntry {
   notes?: string;
 }
 
+// ==================== MEDICAL ====================
+export interface MedicalAppointment {
+  id: string;
+  title: string;
+  doctor?: string;
+  specialty?: string;
+  location?: string;
+  date: string;
+  time: string;
+  notes?: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  reminder?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MedicalTask {
+  id: string;
+  title: string;
+  category: 'checkup' | 'exam' | 'medication' | 'specialist' | 'other';
+  dueDate?: string;
+  notes?: string;
+  completed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ==================== NOTES ====================
 export interface QuickNote {
   id: string;
@@ -429,6 +456,8 @@ export interface AppData {
   sleepLogs: SleepLog[];
   hydrationLogs: HydrationLog[];
   healthEntries: HealthEntry[];
+  medicalAppointments: MedicalAppointment[];
+  medicalTasks: MedicalTask[];
   quickNotes: QuickNote[];
   conversations: AIConversation[];
   projects: Project[];

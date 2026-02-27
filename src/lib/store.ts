@@ -8,6 +8,7 @@ import type {
   Goal, Habit, Transaction, SavingsGoal, Budget, SleepLog, HydrationLog,
   HealthEntry, QuickNote, AIConversation, Project, ProjectTask, Milestone,
   SocialMediaPost, CommercialLead, ProjectDocument, ProjectMeeting, ProjectAlert,
+  MedicalAppointment, MedicalTask,
 } from '@/types';
 
 const defaultSettings: AppSettings = {
@@ -42,6 +43,8 @@ const defaultData: Omit<AppData, 'settings' | 'aiProfile'> = {
   sleepLogs: [],
   hydrationLogs: [],
   healthEntries: [],
+  medicalAppointments: [],
+  medicalTasks: [],
   quickNotes: [],
   conversations: [],
   projects: [],
@@ -103,6 +106,13 @@ interface AppState extends AppData {
   updateHydrationLog: (id: string, log: Partial<HydrationLog>) => void;
   addHealthEntry: (entry: HealthEntry) => void;
   updateHealthEntry: (id: string, entry: Partial<HealthEntry>) => void;
+  addMedicalAppointment: (appointment: MedicalAppointment) => void;
+  updateMedicalAppointment: (id: string, appointment: Partial<MedicalAppointment>) => void;
+  deleteMedicalAppointment: (id: string) => void;
+  addMedicalTask: (task: MedicalTask) => void;
+  updateMedicalTask: (id: string, task: Partial<MedicalTask>) => void;
+  deleteMedicalTask: (id: string) => void;
+  toggleMedicalTask: (id: string) => void;
   addQuickNote: (note: QuickNote) => void;
   updateQuickNote: (id: string, note: Partial<QuickNote>) => void;
   deleteQuickNote: (id: string) => void;
@@ -242,6 +252,17 @@ export const useAppStore = create<AppState>()(
       addHealthEntry: (entry) => set((state) => ({ healthEntries: [...state.healthEntries, entry] })),
       updateHealthEntry: (id, entry) => set((state) => ({ healthEntries: state.healthEntries.map((e) => e.id === id ? { ...e, ...entry } : e) })),
 
+      // Medical Appointments
+      addMedicalAppointment: (appointment) => set((state) => ({ medicalAppointments: [...state.medicalAppointments, appointment] })),
+      updateMedicalAppointment: (id, appointment) => set((state) => ({ medicalAppointments: state.medicalAppointments.map((a) => a.id === id ? { ...a, ...appointment, updatedAt: new Date().toISOString() } : a) })),
+      deleteMedicalAppointment: (id) => set((state) => ({ medicalAppointments: state.medicalAppointments.filter((a) => a.id !== id) })),
+
+      // Medical Tasks
+      addMedicalTask: (task) => set((state) => ({ medicalTasks: [...state.medicalTasks, task] })),
+      updateMedicalTask: (id, task) => set((state) => ({ medicalTasks: state.medicalTasks.map((t) => t.id === id ? { ...t, ...task, updatedAt: new Date().toISOString() } : t) })),
+      deleteMedicalTask: (id) => set((state) => ({ medicalTasks: state.medicalTasks.filter((t) => t.id !== id) })),
+      toggleMedicalTask: (id) => set((state) => ({ medicalTasks: state.medicalTasks.map((t) => t.id === id ? { ...t, completed: !t.completed, updatedAt: new Date().toISOString() } : t) })),
+
       // Quick Notes
       addQuickNote: (note) => set((state) => ({ quickNotes: [...state.quickNotes, note] })),
       updateQuickNote: (id, note) => set((state) => ({ quickNotes: state.quickNotes.map((n) => n.id === id ? { ...n, ...note } : n) })),
@@ -341,6 +362,8 @@ export const useAppStore = create<AppState>()(
         sleepLogs: data.sleepLogs || [],
         hydrationLogs: data.hydrationLogs || [],
         healthEntries: data.healthEntries || [],
+        medicalAppointments: data.medicalAppointments || [],
+        medicalTasks: data.medicalTasks || [],
         quickNotes: data.quickNotes || [],
         conversations: data.conversations || [],
         projects: data.projects || [],
