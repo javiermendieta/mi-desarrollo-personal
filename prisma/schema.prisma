@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -29,11 +30,19 @@ model User {
   transactions    Transaction[]
   savingsGoals    SavingsGoal[]
   budgets         Budget[]
+  accountPlan     AccountPlanItem[]
+  pnlData         PNLData[]
   sleepLogs       SleepLog[]
   hydrationLogs   HydrationLog[]
   healthEntries   HealthEntry[]
+  medicalAppointments MedicalAppointment[]
+  medicalTasks    MedicalTask[]
   quickNotes      QuickNote[]
   conversations   Conversation[]
+  projects        Project[]
+  commercialLeads CommercialLead[]
+  socialMediaPosts SocialMediaPost[]
+  projectAlerts   ProjectAlert[]
   activities      Activity[]
   settings        Settings?
   aiProfile       AIProfile?
@@ -43,11 +52,11 @@ model Activity {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
-  type        String   // habit, sport, yoga, meditation, reading, diary, goal, health, finance
-  action      String   // completed, created, updated, progress
-  referenceId String?  // ID del elemento relacionado
-  title       String   // Descripción corta
-  details     Json?    // Detalles adicionales
+  type        String
+  action      String
+  referenceId String?
+  title       String
+  details     Json?
   date        DateTime @default(now())
   
   @@index([userId, date])
@@ -70,11 +79,11 @@ model AIProfile {
   id                String   @id @default(cuid())
   userId            String   @unique
   user              User     @relation(fields: [userId], references: [id])
-  personality       String?
-  lifeGoals         String?
-  currentChallenges String?
-  values            String?
-  interests         String?
+  personality       String?  @db.Text
+  lifeGoals         String?  @db.Text
+  currentChallenges String?  @db.Text
+  values            String?  @db.Text
+  interests         String?  @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -84,7 +93,7 @@ model CalendarEvent {
   userId          String
   user            User      @relation(fields: [userId], references: [id])
   title           String
-  description     String?
+  description     String?   @db.Text
   startDate       DateTime
   endDate         DateTime?
   color           String    @default("#3b82f6")
@@ -94,6 +103,8 @@ model CalendarEvent {
   recurrenceEnd   DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  @@index([userId, startDate])
 }
 
 model Sport {
@@ -115,7 +126,7 @@ model YogaExercise {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   name        String
-  description String?
+  description String?  @db.Text
   duration    Int      @default(10)
   difficulty  String   @default("beginner")
   category    String?
@@ -131,9 +142,11 @@ model MeditationSession {
   date      DateTime
   duration  Int
   type      String   @default("mindfulness")
-  notes     String?
+  notes     String?  @db.Text
   completed Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 model YogaSession {
@@ -144,6 +157,8 @@ model YogaSession {
   duration  Int      @default(0)
   completed Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 model Book {
@@ -170,12 +185,14 @@ model DiaryEntry {
   user      User     @relation(fields: [userId], references: [id])
   date      DateTime
   title     String?
-  content   String
+  content   String   @db.Text
   mood      String   @default("good")
   tags      Json?
   gratitude Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
 }
 
 model LimitingBelief {
@@ -183,8 +200,8 @@ model LimitingBelief {
   userId       String
   user         User     @relation(fields: [userId], references: [id])
   belief       String
-  explanation  String?
-  dailyWork    String?
+  explanation  String?  @db.Text
+  dailyWork    String?  @db.Text
   progress     Int      @default(0)
   isOvercome   Boolean  @default(false)
   reflections  Json?
@@ -197,7 +214,7 @@ model Goal {
   userId       String
   user         User     @relation(fields: [userId], references: [id])
   title        String
-  description  String?
+  description  String?  @db.Text
   timeframe    String   @default("short")
   category     String   @default("personal")
   deadline     DateTime?
@@ -213,7 +230,7 @@ model Habit {
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   name        String
-  description String?
+  description String?  @db.Text
   icon        String   @default("check")
   color       String   @default("#22c55e")
   frequency   String   @default("daily")
@@ -233,7 +250,10 @@ model Transaction {
   category    String   @default("other")
   description String?
   date        DateTime
+  accountId   String?
   createdAt   DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 model SavingsGoal {
@@ -256,6 +276,40 @@ model Budget {
   limitAmount Float
   month       String
   createdAt   DateTime @default(now())
+
+  @@index([userId, month])
+}
+
+// Plan de Cuentas para Finanzas
+model AccountPlanItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  code        String
+  name        String
+  type        String   // income, expense
+  category    String   // ventas, costos, gastos, etc.
+  subcategory String?
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, type])
+  @@index([userId, category])
+}
+
+// Estado de Pérdidas y Ganancias
+model PNLData {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  period        String   // formato: YYYY-MM
+  accountPlans  Json?    // [{ accountId, theoretical }]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, period])
 }
 
 model SleepLog {
@@ -268,6 +322,8 @@ model SleepLog {
   quality   Int      @default(3)
   notes     String?
   createdAt DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 model HydrationLog {
@@ -278,6 +334,8 @@ model HydrationLog {
   glasses   Int      @default(0)
   target    Int      @default(8)
   createdAt DateTime @default(now())
+
+  @@index([userId, date])
 }
 
 model HealthEntry {
@@ -288,8 +346,41 @@ model HealthEntry {
   weight    Float?
   steps     Int?
   calories  Int?
-  notes     String?
+  notes     String?  @db.Text
   createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model MedicalAppointment {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  doctor      String
+  specialty   String?
+  date        DateTime
+  location    String?
+  notes       String?   @db.Text
+  status      String    @default("scheduled")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, date])
+}
+
+model MedicalTask {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  title       String
+  description String?   @db.Text
+  dueDate     DateTime?
+  completed   Boolean   @default(false)
+  priority    String    @default("medium")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, dueDate])
 }
 
 model QuickNote {
@@ -297,7 +388,7 @@ model QuickNote {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   title     String
-  content   String?
+  content   String?  @db.Text
   category  String   @default("Otros")
   color     String   @default("#ffffff")
   isPinned  Boolean  @default(false)
@@ -313,4 +404,84 @@ model Conversation {
   messages  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Proyectos
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  description String?  @db.Text
+  client      String?
+  status      String   @default("active") // active, completed, on-hold
+  type        String   @default("client") // client, internal
+  startDate   DateTime?
+  endDate     DateTime?
+  color       String   @default("#3b82f6")
+  tasks       Json?
+  milestones  Json?
+  documents   Json?
+  meetings    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+// Leads comerciales
+model CommercialLead {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  name        String
+  company     String?
+  email       String?
+  phone       String?
+  source      String?
+  status      String    @default("new") // new, contacted, proposal, negotiation, won, lost
+  value       Float?
+  probability Int?
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, status])
+}
+
+// Posts de redes sociales
+model SocialMediaPost {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  platform    String    // instagram, twitter, linkedin, etc.
+  content     String    @db.Text
+  status      String    @default("draft") // draft, scheduled, published
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  mediaUrl    String?
+  tags        Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, platform])
+  @@index([userId, scheduledAt])
+}
+
+// Alertas de proyectos
+model ProjectAlert {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  projectId   String?
+  type        String    // deadline, task, meeting, etc.
+  title       String
+  message     String?
+  severity    String    @default("info") // info, warning, error
+  isRead      Boolean   @default(false)
+  isDismissed Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }

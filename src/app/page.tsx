@@ -18,34 +18,6 @@ import { ProjectsModule } from '@/components/modules/ProjectsModule';
 import { AIAssistant } from '@/components/AIAssistant';
 import { AuthForm } from '@/components/AuthForm';
 import { useAppStore } from '@/lib/store';
-import { useHydration } from '@/hooks/useHydration';
-
-// Helper para verificar si hay datos en localStorage
-function hasLocalData(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    const stored = localStorage.getItem('personal-dev-storage');
-    if (!stored) return false;
-    const parsed = JSON.parse(stored);
-    // Verificar si hay algún dato real (no solo defaults)
-    const hasData = parsed?.state && (
-      (parsed.state.events?.length > 0) ||
-      (parsed.state.habits?.length > 0) ||
-      (parsed.state.goals?.length > 0) ||
-      (parsed.state.transactions?.length > 0) ||
-      (parsed.state.sports?.length > 0) ||
-      (parsed.state.books?.length > 0) ||
-      (parsed.state.projects?.length > 0) ||
-      (parsed.state.diaryEntries?.length > 0) ||
-      (parsed.state.meditationSessions?.length > 0) ||
-      (parsed.state.accountPlan?.length > 0) ||
-      (parsed.state.pnlData?.length > 0)
-    );
-    return hasData;
-  } catch {
-    return false;
-  }
-}
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -53,9 +25,6 @@ export default function Home() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const importAllData = useAppStore((s) => s.importAllData);
-  const isHydrated = useHydration();
-
-  console.log('=== Home render ===', { isAIOpen, activeSection, isHydrated });
 
   useEffect(() => {
     checkAuth();
@@ -76,11 +45,8 @@ export default function Home() {
       
       if (data.user) {
         setIsAuthed(true);
-        // Solo cargar de API si NO hay datos locales
-        // Esto permite que localStorage sea la fuente principal
-        if (!hasLocalData()) {
-          await loadDataFromAPI();
-        }
+        // Cargar datos desde la base de datos
+        await loadDataFromDB();
       }
     } catch {
       console.error('Error checking auth');
@@ -89,7 +55,7 @@ export default function Home() {
     }
   };
 
-  const loadDataFromAPI = async () => {
+  const loadDataFromDB = async () => {
     try {
       const res = await fetch('/api/data');
       
@@ -103,7 +69,7 @@ export default function Home() {
         return;
       }
 
-      if (!data.error && Object.keys(data).length > 0) {
+      if (!data.error) {
         importAllData({
           settings: data.settings || { theme: 'system', language: 'es', notifications: true, weekStartsOn: 1 },
           aiProfile: data.aiProfile || {},
@@ -136,13 +102,13 @@ export default function Home() {
         });
       }
     } catch (e) {
-      console.error('Error loading data from API', e);
+      console.error('Error loading data from DB', e);
     }
   };
 
   const handleAuth = () => {
     setIsAuthed(true);
-    // No cargar datos de API - usar localStorage como fuente principal
+    loadDataFromDB();
   };
 
   const handleLogout = async () => {
@@ -187,8 +153,7 @@ export default function Home() {
     }
   };
 
-  // Mostrar loading si está cargando autenticación O si el store no está hidratado
-  if (isLoading || !isHydrated) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -205,10 +170,7 @@ export default function Home() {
       <AppLayout
         activeSection={activeSection}
         onSectionChange={setActiveSection}
-        onOpenAI={() => {
-          console.log('=== onOpenAI called ===');
-          setIsAIOpen(true);
-        }}
+        onOpenAI={() => setIsAIOpen(true)}
         onLogout={handleLogout}
       >
         {renderSection()}
