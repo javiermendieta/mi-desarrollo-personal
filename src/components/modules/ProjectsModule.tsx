@@ -16,9 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   FolderKanban, Plus, Search, MoreVertical, Calendar, CheckCircle2, Clock,
   AlertCircle, Play, Pause, Trash2, Edit, ListTodo, FileText, Video,
-  Users, Building, Mail, Phone, ExternalLink, Upload, Download, X,
+  Users, Building, ExternalLink, Upload, Download, X,
   Bell, BellRing, Instagram, Linkedin, Twitter, Facebook, TrendingUp,
-  DollarSign, Target, Eye, ChevronLeft, ChevronRight,
+  DollarSign, Target, Eye, ChevronLeft, ChevronRight, GripVertical, FileSpreadsheet, File,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import type { 
@@ -30,9 +30,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { format, differenceInDays, isPast, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addDays, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const statusConfig: Record<ProjectStatus, { label: string; color: string }> = {
   planning: { label: 'Planificación', color: 'bg-gray-500' },
@@ -65,13 +79,13 @@ const meetingTypeConfig = {
 };
 
 const leadStatusConfig = {
-  new: { label: 'Nuevo', color: 'bg-blue-100 text-blue-700' },
-  contacted: { label: 'Contactado', color: 'bg-purple-100 text-purple-700' },
-  qualified: { label: 'Calificado', color: 'bg-yellow-100 text-yellow-700' },
-  proposal: { label: 'Propuesta', color: 'bg-orange-100 text-orange-700' },
-  negotiation: { label: 'Negociación', color: 'bg-pink-100 text-pink-700' },
-  won: { label: 'Ganado', color: 'bg-green-100 text-green-700' },
-  lost: { label: 'Perdido', color: 'bg-red-100 text-red-700' },
+  new: { label: 'Nuevo', color: 'bg-blue-100 text-blue-700', borderColor: 'border-blue-300' },
+  contacted: { label: 'Contactado', color: 'bg-purple-100 text-purple-700', borderColor: 'border-purple-300' },
+  qualified: { label: 'Calificado', color: 'bg-yellow-100 text-yellow-700', borderColor: 'border-yellow-300' },
+  proposal: { label: 'Propuesta', color: 'bg-orange-100 text-orange-700', borderColor: 'border-orange-300' },
+  negotiation: { label: 'Negociación', color: 'bg-pink-100 text-pink-700', borderColor: 'border-pink-300' },
+  won: { label: 'Ganado', color: 'bg-green-100 text-green-700', borderColor: 'border-green-300' },
+  lost: { label: 'Perdido', color: 'bg-red-100 text-red-700', borderColor: 'border-red-300' },
 };
 
 const platformConfig = {
@@ -98,6 +112,77 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 type MainTab = 'clients' | 'business' | 'calendar';
 
+// Draggable Lead Card Component
+function DraggableLeadCard({ 
+  lead, 
+  onEdit, 
+  onDelete 
+}: { 
+  lead: CommercialLead; 
+  onEdit: () => void; 
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useSortable({ id: lead.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card 
+      ref={setNodeRef} 
+      style={style} 
+      className={cn(
+        "cursor-grab active:cursor-grabbing transition-shadow",
+        isDragging && "shadow-lg ring-2 ring-primary"
+      )}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-start gap-2">
+          <button {...attributes} {...listeners} className="mt-1 cursor-grab text-muted-foreground hover:text-foreground">
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="font-medium truncate">{lead.name}</p>
+                {lead.company && <p className="text-sm text-muted-foreground truncate">{lead.company}</p>}
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0">
+                    <MoreVertical className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={onEdit}><Edit className="h-4 w-4 mr-2" />Editar</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Eliminar</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {lead.value && (
+              <p className="text-sm font-semibold text-green-600 mt-1">${lead.value.toLocaleString()}</p>
+            )}
+            {lead.nextFollowUp && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {format(parseISO(lead.nextFollowUp), 'd MMM', { locale: es })}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ProjectsModule() {
   const { 
     projects, addProject, updateProject, deleteProject, 
@@ -107,7 +192,7 @@ export function ProjectsModule() {
     addMeetingToProject, updateMeetingInProject, deleteMeetingFromProject,
     socialMediaPosts, addSocialMediaPost, updateSocialMediaPost, deleteSocialMediaPost,
     commercialLeads, addCommercialLead, updateCommercialLead, deleteCommercialLead,
-    projectAlerts, addProjectAlert, dismissProjectAlert,
+    projectAlerts, dismissProjectAlert,
   } = useAppStore();
 
   const [mainTab, setMainTab] = useState<MainTab>('clients');
@@ -134,11 +219,39 @@ export function ProjectsModule() {
   const [editingMeeting, setEditingMeeting] = useState<ProjectMeeting | null>(null);
   const [detailTab, setDetailTab] = useState<string>('overview');
   
+  // Document viewer
+  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState<ProjectDocument | null>(null);
+  
   // Social Media & Leads dialogs
   const [isPostDialogOpen, setIsPostDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<SocialMediaPost | null>(null);
   const [isLeadDialogOpen, setIsLeadDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<CommercialLead | null>(null);
+
+  // Drag and drop
+  const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  // Monthly goals (stored in localStorage via state)
+  const [monthlyLeadGoal, setMonthlyLeadGoal] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return parseInt(localStorage.getItem('monthlyLeadGoal') || '10');
+    }
+    return 10;
+  });
+  const [monthlyBillingGoal, setMonthlyBillingGoal] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return parseInt(localStorage.getItem('monthlyBillingGoal') || '50000');
+    }
+    return 50000;
+  });
 
   // File upload ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,6 +293,15 @@ export function ProjectsModule() {
     value: '', probability: '50', notes: '', nextFollowUp: '',
   });
 
+  // Save goals to localStorage
+  useEffect(() => {
+    localStorage.setItem('monthlyLeadGoal', monthlyLeadGoal.toString());
+  }, [monthlyLeadGoal]);
+
+  useEffect(() => {
+    localStorage.setItem('monthlyBillingGoal', monthlyBillingGoal.toString());
+  }, [monthlyBillingGoal]);
+
   // Computed values
   const clientProjects = useMemo(() => projects.filter(p => p.type === 'client' || !p.type), [projects]);
   const internalProjects = useMemo(() => projects.filter(p => p.type === 'internal'), [projects]);
@@ -195,6 +317,27 @@ export function ProjectsModule() {
     });
   }, [clientProjects, searchQuery, filterStatus]);
 
+  // Monthly stats for leads
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const monthlyStats = useMemo(() => {
+    const monthLeads = commercialLeads.filter(l => l.createdAt.startsWith(currentMonth));
+    const totalLeads = monthLeads.length;
+    const totalValue = monthLeads.reduce((sum, l) => sum + (l.value || 0), 0);
+    const wonLeads = commercialLeads.filter(l => l.status === 'won' && l.updatedAt?.startsWith(currentMonth));
+    const wonValue = wonLeads.reduce((sum, l) => sum + (l.value || 0), 0);
+    const contactedLeads = commercialLeads.filter(l => ['contacted', 'qualified', 'proposal', 'negotiation', 'won'].includes(l.status));
+    
+    return {
+      totalLeads,
+      totalValue,
+      wonValue,
+      wonCount: wonLeads.length,
+      contactedCount: contactedLeads.length,
+      leadProgress: Math.min(100, Math.round((totalLeads / monthlyLeadGoal) * 100)),
+      billingProgress: Math.min(100, Math.round((wonValue / monthlyBillingGoal) * 100)),
+    };
+  }, [commercialLeads, currentMonth, monthlyLeadGoal, monthlyBillingGoal]);
+
   // Generate alerts
   const activeAlerts = useMemo(() => {
     const alerts: { id: string; type: string; title: string; description: string; date: string; color: string; projectId?: string; leadId?: string }[] = [];
@@ -202,7 +345,6 @@ export function ProjectsModule() {
     const threeDaysLater = addDays(today, 3);
     const sevenDaysLater = addDays(today, 7);
 
-    // Meeting alerts
     projects.forEach(project => {
       (project.meetings || []).forEach(meeting => {
         if (meeting.status === 'scheduled' && meeting.date) {
@@ -222,7 +364,6 @@ export function ProjectsModule() {
       });
     });
 
-    // Deadline alerts
     projects.forEach(project => {
       if (project.deadline && project.status !== 'completed') {
         const deadlineDate = parseISO(project.deadline);
@@ -250,7 +391,6 @@ export function ProjectsModule() {
       }
     });
 
-    // Lead follow-up alerts
     commercialLeads.forEach(lead => {
       if (lead.nextFollowUp && !['won', 'lost'].includes(lead.status)) {
         const followUpDate = parseISO(lead.nextFollowUp);
@@ -268,7 +408,6 @@ export function ProjectsModule() {
       }
     });
 
-    // Scheduled posts alerts
     socialMediaPosts.forEach(post => {
       if (post.status === 'scheduled' && post.scheduledDate) {
         const postDate = parseISO(post.scheduledDate);
@@ -465,6 +604,13 @@ export function ProjectsModule() {
     setIsDocumentDialogOpen(false);
   };
 
+  const openDocumentViewer = (doc: ProjectDocument) => {
+    if (doc.fileData) {
+      setViewingDocument(doc);
+      setIsDocumentViewerOpen(true);
+    }
+  };
+
   const downloadDocument = (doc: ProjectDocument) => {
     if (doc.fileData) {
       const link = document.createElement('a');
@@ -474,6 +620,14 @@ export function ProjectsModule() {
       link.click();
       document.body.removeChild(link);
     }
+  };
+
+  const getFileType = (fileName: string): 'pdf' | 'word' | 'excel' | 'other' => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (['doc', 'docx'].includes(ext || '')) return 'word';
+    if (['xls', 'xlsx'].includes(ext || '')) return 'excel';
+    return 'other';
   };
 
   // Meeting CRUD
@@ -547,16 +701,33 @@ export function ProjectsModule() {
     setIsLeadDialogOpen(false);
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveLeadId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveLeadId(null);
+
+    if (!over) return;
+
+    const leadId = active.id as string;
+    const newStatus = over.id as CommercialLead['status'];
+
+    if (leadStatusConfig[newStatus as keyof typeof leadStatusConfig]) {
+      updateCommercialLead(leadId, { status: newStatus });
+    }
+  };
+
   // Calendar events
   const calendarEvents = useMemo(() => {
     const events: { date: string; type: string; title: string; color: string; projectId?: string }[] = [];
     
     projects.forEach(project => {
-      // Project deadlines
       if (project.deadline) {
         events.push({ date: project.deadline, type: 'deadline', title: `Deadline: ${project.name}`, color: project.color, projectId: project.id });
       }
-      // Meetings
       (project.meetings || []).forEach(meeting => {
         if (meeting.date) {
           events.push({ date: meeting.date, type: 'meeting', title: meeting.title, color: '#8b5cf6', projectId: project.id });
@@ -564,14 +735,12 @@ export function ProjectsModule() {
       });
     });
 
-    // Lead follow-ups
     commercialLeads.forEach(lead => {
       if (lead.nextFollowUp) {
         events.push({ date: lead.nextFollowUp, type: 'followup', title: `Seguimiento: ${lead.name}`, color: '#f59e0b' });
       }
     });
 
-    // Scheduled posts
     socialMediaPosts.forEach(post => {
       if (post.scheduledDate && post.status === 'scheduled') {
         events.push({ date: post.scheduledDate, type: 'post', title: `Post: ${platformConfig[post.platform].label}`, color: '#3b82f6' });
@@ -580,6 +749,87 @@ export function ProjectsModule() {
 
     return events;
   }, [projects, commercialLeads, socialMediaPosts]);
+
+  // Render document viewer
+  const renderDocumentViewer = () => {
+    if (!viewingDocument) return null;
+
+    const fileType = viewingDocument.fileName ? getFileType(viewingDocument.fileName) : 'other';
+
+    return (
+      <Dialog open={isDocumentViewerOpen} onOpenChange={setIsDocumentViewerOpen}>
+        <DialogContent className="max-w-5xl max-h-[95vh] p-0">
+          <DialogHeader className="p-4 border-b">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {viewingDocument.name}
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                {viewingDocument.fileName && (
+                  <Badge variant="outline">{viewingDocument.fileName}</Badge>
+                )}
+                <Button variant="outline" size="sm" onClick={() => downloadDocument(viewingDocument)}>
+                  <Download className="h-4 w-4 mr-1" />
+                  Descargar
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="h-[80vh] overflow-auto">
+            {fileType === 'pdf' && viewingDocument.fileData && (
+              <iframe
+                src={viewingDocument.fileData}
+                className="w-full h-full"
+                title={viewingDocument.name}
+              />
+            )}
+            {fileType === 'word' && (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <File className="h-20 w-20 text-blue-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Documento de Word</h3>
+                <p className="text-muted-foreground mb-4">
+                  La vista previa de documentos Word no está disponible.<br />
+                  Descarga el archivo para verlo.
+                </p>
+                <Button onClick={() => downloadDocument(viewingDocument)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar {viewingDocument.fileName}
+                </Button>
+              </div>
+            )}
+            {fileType === 'excel' && (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <FileSpreadsheet className="h-20 w-20 text-green-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Planilla de Excel</h3>
+                <p className="text-muted-foreground mb-4">
+                  La vista previa de planillas Excel no está disponible.<br />
+                  Descarga el archivo para verlo.
+                </p>
+                <Button onClick={() => downloadDocument(viewingDocument)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar {viewingDocument.fileName}
+                </Button>
+              </div>
+            )}
+            {fileType === 'other' && (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <File className="h-20 w-20 text-gray-500 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Archivo</h3>
+                <p className="text-muted-foreground mb-4">
+                  Vista previa no disponible para este tipo de archivo.
+                </p>
+                <Button onClick={() => downloadDocument(viewingDocument)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar {viewingDocument.fileName}
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   // Render calendar
   const renderCalendar = () => {
@@ -634,24 +884,11 @@ export function ProjectsModule() {
             })}
           </div>
           
-          {/* Legend */}
           <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-purple-500" />
-              <span className="text-sm">Reuniones</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-red-500" />
-              <span className="text-sm">Deadlines</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-orange-500" />
-              <span className="text-sm">Seguimientos</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-blue-500" />
-              <span className="text-sm">Posts</span>
-            </div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-purple-500" /><span className="text-sm">Reuniones</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-red-500" /><span className="text-sm">Deadlines</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-orange-500" /><span className="text-sm">Seguimientos</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-500" /><span className="text-sm">Posts</span></div>
           </div>
         </CardContent>
       </Card>
@@ -777,7 +1014,6 @@ export function ProjectsModule() {
               <TabsTrigger value="milestones">Hitos</TabsTrigger>
             </TabsList>
 
-            {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><ListTodo className="h-5 w-5 text-blue-600" /></div><div><p className="text-2xl font-bold">{project.tasks.length}</p><p className="text-sm text-muted-foreground">Tareas</p></div></div></CardContent></Card>
@@ -790,7 +1026,6 @@ export function ProjectsModule() {
               </div>
             </TabsContent>
 
-            {/* Documents Tab */}
             <TabsContent value="documents" className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
                 <h4 className="font-semibold">Documentos</h4>
@@ -799,7 +1034,7 @@ export function ProjectsModule() {
               {(project.documents || []).length > 0 ? (
                 <div className="space-y-2">
                   {project.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <div key={doc.id} className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-muted/80 cursor-pointer" onClick={() => doc.fileData && openDocumentViewer(doc)}>
                       <FileText className="h-5 w-5 text-muted-foreground" />
                       <div className="flex-1">
                         <p className="font-medium">{doc.name}</p>
@@ -814,9 +1049,11 @@ export function ProjectsModule() {
                         {doc.status === 'final' ? 'Final' : doc.status === 'review' ? 'Revisión' : 'Borrador'}
                       </Badge>
                       {doc.fileData && (
-                        <Button variant="ghost" size="icon" onClick={() => downloadDocument(doc)}><Download className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDocumentViewer(doc); }}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
                       )}
-                      <div className="flex gap-1">
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" onClick={() => { setEditingDocument(doc); setDocumentForm({ name: doc.name, type: doc.type, description: doc.description || '', date: doc.date, version: doc.version || '1.0', status: doc.status, fileName: doc.fileName || '', fileData: doc.fileData || '', fileSize: doc.fileSize || 0 }); setIsDocumentDialogOpen(true); }}><Edit className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => deleteDocumentFromProject(project.id, doc.id)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
@@ -828,7 +1065,6 @@ export function ProjectsModule() {
               )}
             </TabsContent>
 
-            {/* Meetings Tab */}
             <TabsContent value="meetings" className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
                 <h4 className="font-semibold">Reuniones</h4>
@@ -870,7 +1106,6 @@ export function ProjectsModule() {
               )}
             </TabsContent>
 
-            {/* Tasks Tab */}
             <TabsContent value="tasks" className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
                 <h4 className="font-semibold">Tareas</h4>
@@ -899,7 +1134,6 @@ export function ProjectsModule() {
               )}
             </TabsContent>
 
-            {/* Milestones Tab */}
             <TabsContent value="milestones" className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
                 <h4 className="font-semibold">Hitos</h4>
@@ -990,60 +1224,159 @@ export function ProjectsModule() {
     </div>
   );
 
-  // Render commercial pipeline
+  // Render commercial pipeline with drag and drop
   const renderCommercialPipeline = () => {
     const stages = Object.keys(leadStatusConfig) as CommercialLead['status'][];
-    const totalValue = commercialLeads.reduce((sum, l) => sum + (l.value || 0), 0);
+    const activeLead = activeLeadId ? commercialLeads.find(l => l.id === activeLeadId) : null;
 
     return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="h-5 w-5" />Pipeline Comercial</h3>
-          <Button size="sm" onClick={openNewLeadDialog}><Plus className="h-4 w-4 mr-1" />Nuevo Lead</Button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.length}</p><p className="text-sm text-muted-foreground">Total Leads</p></div></div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><DollarSign className="h-5 w-5 text-green-600" /></div><div><p className="text-2xl font-bold">${totalValue.toLocaleString()}</p><p className="text-sm text-muted-foreground">Valor Total</p></div></div></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-purple-100 rounded-lg"><Target className="h-5 w-5 text-purple-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.filter(l => l.status === 'won').length}</p><p className="text-sm text-muted-foreground">Ganados</p></div></div></CardContent></Card>
-        </div>
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {stages.map((stage) => {
-            const stageLeads = commercialLeads.filter(l => l.status === stage);
-            const config = leadStatusConfig[stage];
-            return (
-              <div key={stage} className="flex-shrink-0 w-72">
-                <div className="flex items-center gap-2 mb-3 p-2 bg-muted rounded-lg">
-                  <Badge className={config.color}>{config.label}</Badge>
-                  <Badge variant="secondary" className="ml-auto">{stageLeads.length}</Badge>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp className="h-5 w-5" />Pipeline Comercial</h3>
+            <Button size="sm" onClick={openNewLeadDialog}><Plus className="h-4 w-4 mr-1" />Nuevo Lead</Button>
+          </div>
+
+          {/* Monthly Goals */}
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Objetivos Mensuales - {format(new Date(), 'MMMM yyyy', { locale: es })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Objetivo Leads</Label>
+                    <Input
+                      type="number"
+                      value={monthlyLeadGoal}
+                      onChange={(e) => setMonthlyLeadGoal(parseInt(e.target.value) || 0)}
+                      className="w-20 h-7 text-sm"
+                    />
+                  </div>
+                  <Progress value={monthlyStats.leadProgress} className="h-2" />
+                  <p className="text-xs text-muted-foreground">{monthlyStats.totalLeads} de {monthlyLeadGoal} leads</p>
                 </div>
                 <div className="space-y-2">
-                  {stageLeads.map((lead) => (
-                    <Card key={lead.id} className="cursor-pointer hover:shadow-md">
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium">{lead.name}</p>
-                            {lead.company && <p className="text-sm text-muted-foreground">{lead.company}</p>}
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem onClick={() => { setEditingLead(lead); setLeadForm({ name: lead.name, company: lead.company || '', email: lead.email || '', phone: lead.phone || '', source: lead.source, status: lead.status, value: lead.value?.toString() || '', probability: lead.probability?.toString() || '50', notes: lead.notes || '', nextFollowUp: lead.nextFollowUp || '' }); setIsLeadDialogOpen(true); }}><Edit className="h-4 w-4 mr-2" />Editar</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => deleteCommercialLead(lead.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Eliminar</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        {lead.value && <p className="text-sm font-medium mt-1">${lead.value.toLocaleString()}</p>}
-                        {lead.nextFollowUp && <p className="text-xs text-muted-foreground mt-1">Seguimiento: {format(parseISO(lead.nextFollowUp), 'd MMM', { locale: es })}</p>}
-                      </CardContent>
-                    </Card>
-                  ))}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Objetivo Facturación</Label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">$</span>
+                      <Input
+                        type="number"
+                        value={monthlyBillingGoal}
+                        onChange={(e) => setMonthlyBillingGoal(parseInt(e.target.value) || 0)}
+                        className="w-24 h-7 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <Progress value={monthlyStats.billingProgress} className="h-2" />
+                  <p className="text-xs text-muted-foreground">${monthlyStats.wonValue.toLocaleString()} de ${monthlyBillingGoal.toLocaleString()}</p>
                 </div>
+                <Card className="bg-blue-50 dark:bg-blue-950/20">
+                  <CardContent className="p-3">
+                    <p className="text-2xl font-bold text-blue-600">{monthlyStats.totalLeads}</p>
+                    <p className="text-xs text-muted-foreground">Leads este mes</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="p-3">
+                    <p className="text-2xl font-bold text-green-600">${monthlyStats.wonValue.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Facturado este mes</p>
+                  </CardContent>
+                </Card>
               </div>
-            );
-          })}
+            </CardContent>
+          </Card>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.length}</p><p className="text-sm text-muted-foreground">Total Leads</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><DollarSign className="h-5 w-5 text-green-600" /></div><div><p className="text-2xl font-bold">${commercialLeads.reduce((s, l) => s + (l.value || 0), 0).toLocaleString()}</p><p className="text-sm text-muted-foreground">Valor Total</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-purple-100 rounded-lg"><Target className="h-5 w-5 text-purple-600" /></div><div><p className="text-2xl font-bold">{commercialLeads.filter(l => l.status === 'won').length}</p><p className="text-sm text-muted-foreground">Ganados</p></div></div></CardContent></Card>
+            <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-orange-100 rounded-lg"><TrendingUp className="h-5 w-5 text-orange-600" /></div><div><p className="text-2xl font-bold">{monthlyStats.contactedCount}</p><p className="text-sm text-muted-foreground">Contactados</p></div></div></CardContent></Card>
+          </div>
+
+          {/* Pipeline Board - Horizontal Scroll */}
+          <div className="overflow-x-auto pb-4 -mx-4 px-4">
+            <div className="flex gap-4 min-w-max">
+              {stages.map((stage) => {
+                const stageLeads = commercialLeads.filter(l => l.status === stage);
+                const config = leadStatusConfig[stage];
+                const stageValue = stageLeads.reduce((sum, l) => sum + (l.value || 0), 0);
+                
+                return (
+                  <div
+                    key={stage}
+                    id={stage}
+                    className="flex-shrink-0 w-72"
+                  >
+                    {/* Stage Header */}
+                    <div className={cn("mb-3 p-3 rounded-lg border-2", config.color, config.borderColor)}>
+                      <div className="flex items-center justify-between">
+                        <Badge className={config.color}>{config.label}</Badge>
+                        <Badge variant="secondary">{stageLeads.length}</Badge>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-sm font-semibold">${stageValue.toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground">{stageLeads.length} leads</span>
+                      </div>
+                    </div>
+
+                    {/* Leads List */}
+                    <div className="space-y-2 min-h-[100px]">
+                      {stageLeads.map((lead) => (
+                        <DraggableLeadCard
+                          key={lead.id}
+                          lead={lead}
+                          onEdit={() => {
+                            setEditingLead(lead);
+                            setLeadForm({
+                              name: lead.name,
+                              company: lead.company || '',
+                              email: lead.email || '',
+                              phone: lead.phone || '',
+                              source: lead.source,
+                              status: lead.status,
+                              value: lead.value?.toString() || '',
+                              probability: lead.probability?.toString() || '50',
+                              notes: lead.notes || '',
+                              nextFollowUp: lead.nextFollowUp || '',
+                            });
+                            setIsLeadDialogOpen(true);
+                          }}
+                          onDelete={() => deleteCommercialLead(lead.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Drag Overlay */}
+          <DragOverlay>
+            {activeLead ? (
+              <Card className="shadow-lg ring-2 ring-primary">
+                <CardContent className="p-3">
+                  <p className="font-medium">{activeLead.name}</p>
+                  {activeLead.company && <p className="text-sm text-muted-foreground">{activeLead.company}</p>}
+                  {activeLead.value && <p className="text-sm font-semibold text-green-600">${activeLead.value.toLocaleString()}</p>}
+                </CardContent>
+              </Card>
+            ) : null}
+          </DragOverlay>
         </div>
-      </div>
+      </DndContext>
     );
   };
 
@@ -1068,7 +1401,6 @@ export function ProjectsModule() {
           <TabsTrigger value="calendar"><Calendar className="h-4 w-4 mr-2" />Calendario</TabsTrigger>
         </TabsList>
 
-        {/* Client Projects Tab */}
         <TabsContent value="clients" className="space-y-4 mt-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="relative flex-1">
@@ -1095,16 +1427,15 @@ export function ProjectsModule() {
           ) : renderProjectCards(filteredProjects)}
         </TabsContent>
 
-        {/* Business Tab */}
         <TabsContent value="business" className="space-y-6 mt-4">
-          <Tabs defaultValue="social">
+          <Tabs defaultValue="commercial">
             <TabsList>
-              <TabsTrigger value="social"><Instagram className="h-4 w-4 mr-2" />Redes Sociales</TabsTrigger>
               <TabsTrigger value="commercial"><TrendingUp className="h-4 w-4 mr-2" />Comercial</TabsTrigger>
+              <TabsTrigger value="social"><Instagram className="h-4 w-4 mr-2" />Redes Sociales</TabsTrigger>
               <TabsTrigger value="internal"><FolderKanban className="h-4 w-4 mr-2" />Proyectos Internos</TabsTrigger>
             </TabsList>
-            <TabsContent value="social" className="mt-4">{renderSocialMedia()}</TabsContent>
             <TabsContent value="commercial" className="mt-4">{renderCommercialPipeline()}</TabsContent>
+            <TabsContent value="social" className="mt-4">{renderSocialMedia()}</TabsContent>
             <TabsContent value="internal" className="mt-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">Proyectos Internos</h3>
@@ -1123,14 +1454,12 @@ export function ProjectsModule() {
           </Tabs>
         </TabsContent>
 
-        {/* Calendar Tab */}
         <TabsContent value="calendar" className="mt-4">
           {renderCalendar()}
         </TabsContent>
       </Tabs>
 
       {/* All Dialogs */}
-      {/* Project Dialog */}
       <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingProject ? 'Editar Proyecto' : 'Nuevo Proyecto'}</DialogTitle></DialogHeader>
@@ -1165,7 +1494,6 @@ export function ProjectsModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Task Dialog */}
       <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</DialogTitle></DialogHeader>
@@ -1186,7 +1514,6 @@ export function ProjectsModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Milestone Dialog */}
       <Dialog open={isMilestoneDialogOpen} onOpenChange={setIsMilestoneDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingMilestone ? 'Editar Hito' : 'Nuevo Hito'}</DialogTitle></DialogHeader>
@@ -1202,7 +1529,6 @@ export function ProjectsModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Document Dialog */}
       <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editingDocument ? 'Editar Documento' : 'Nuevo Documento'}</DialogTitle></DialogHeader>
@@ -1234,7 +1560,6 @@ export function ProjectsModule() {
               <div><Label>Fecha</Label><Input type="date" value={documentForm.date} onChange={(e) => setDocumentForm({ ...documentForm, date: e.target.value })} /></div>
               <div><Label>Versión</Label><Input value={documentForm.version} onChange={(e) => setDocumentForm({ ...documentForm, version: e.target.value })} /></div>
             </div>
-            {/* File Upload */}
             <div>
               <Label>Archivo (PDF, Word, Excel - máx 5MB)</Label>
               <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={handleFileUpload} className="hidden" />
@@ -1262,7 +1587,6 @@ export function ProjectsModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Meeting Dialog */}
       <Dialog open={isMeetingDialogOpen} onOpenChange={setIsMeetingDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editingMeeting ? 'Editar Reunión' : 'Nueva Reunión'}</DialogTitle></DialogHeader>
@@ -1304,7 +1628,6 @@ export function ProjectsModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Social Media Post Dialog */}
       <Dialog open={isPostDialogOpen} onOpenChange={setIsPostDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingPost ? 'Editar Post' : 'Nuevo Post'}</DialogTitle></DialogHeader>
@@ -1333,7 +1656,6 @@ export function ProjectsModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Commercial Lead Dialog */}
       <Dialog open={isLeadDialogOpen} onOpenChange={setIsLeadDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editingLead ? 'Editar Lead' : 'Nuevo Lead'}</DialogTitle></DialogHeader>
@@ -1368,6 +1690,7 @@ export function ProjectsModule() {
       </Dialog>
 
       {renderProjectDetail()}
+      {renderDocumentViewer()}
     </div>
   );
 }
