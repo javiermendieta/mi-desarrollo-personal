@@ -1430,16 +1430,21 @@ export function ProjectsModule() {
           </div>
 
           {/* Pipeline Board - Horizontal Scroll with visible scrollbar */}
-          <div className="relative">
-            {/* Scroll indicators */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none hidden" id="scroll-left-indicator" />
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none hidden" id="scroll-right-indicator" />
-            
+          <div className="w-full overflow-hidden">
             <div 
-              className="overflow-x-auto pb-4 [&::-webkit-scrollbar]:h-3 [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-primary/50"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--primary) / 0.3) hsl(var(--muted))' }}
+              className="overflow-x-auto pb-4 w-full
+                [&::-webkit-scrollbar]:h-3 
+                [&::-webkit-scrollbar-track]:bg-muted 
+                [&::-webkit-scrollbar-track]:rounded-full 
+                [&::-webkit-scrollbar-thumb]:bg-primary/40 
+                [&::-webkit-scrollbar-thumb]:rounded-full 
+                [&::-webkit-scrollbar-thumb:hover]:bg-primary/60"
+              style={{ 
+                scrollbarWidth: 'auto', 
+                scrollbarColor: 'hsl(var(--primary) / 0.4) hsl(var(--muted))' 
+              }}
             >
-              <div className="flex gap-4 min-w-max px-1 py-1">
+              <div className="flex gap-4" style={{ width: 'max-content', minWidth: '100%' }}>
                 {stages.map((stage) => {
                   const stageLeads = commercialLeads.filter(l => l.status === stage);
                   const config = leadStatusConfig[stage];
@@ -1461,9 +1466,9 @@ export function ProjectsModule() {
             </div>
             
             {/* Scroll hint */}
-            <div className="flex items-center justify-center gap-2 mt-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 mt-1 text-xs text-muted-foreground">
               <ChevronLeft className="h-4 w-4" />
-              <span>Desliza para ver más etapas</span>
+              <span>← Desliza para ver más etapas →</span>
               <ChevronRight className="h-4 w-4" />
             </div>
           </div>
