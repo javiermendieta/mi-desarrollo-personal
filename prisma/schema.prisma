@@ -1,0 +1,316 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  events          CalendarEvent[]
+  sports          Sport[]
+  yogaExercises   YogaExercise[]
+  meditationSessions MeditationSession[]
+  yogaSessions    YogaSession[]
+  books           Book[]
+  diaryEntries    DiaryEntry[]
+  limitingBeliefs LimitingBelief[]
+  goals           Goal[]
+  habits          Habit[]
+  transactions    Transaction[]
+  savingsGoals    SavingsGoal[]
+  budgets         Budget[]
+  sleepLogs       SleepLog[]
+  hydrationLogs   HydrationLog[]
+  healthEntries   HealthEntry[]
+  quickNotes      QuickNote[]
+  conversations   Conversation[]
+  activities      Activity[]
+  settings        Settings?
+  aiProfile       AIProfile?
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String   // habit, sport, yoga, meditation, reading, diary, goal, health, finance
+  action      String   // completed, created, updated, progress
+  referenceId String?  // ID del elemento relacionado
+  title       String   // Descripción corta
+  details     Json?    // Detalles adicionales
+  date        DateTime @default(now())
+  
+  @@index([userId, date])
+  @@index([userId, type])
+}
+
+model Settings {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  theme       String   @default("system")
+  language    String   @default("es")
+  notifications Boolean @default(true)
+  weekStartsOn Int     @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AIProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  personality       String?
+  lifeGoals         String?
+  currentChallenges String?
+  values            String?
+  interests         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model CalendarEvent {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime?
+  color           String    @default("#3b82f6")
+  category        String    @default("Personal")
+  isRecurring     Boolean   @default(false)
+  recurrencePattern String?
+  recurrenceEnd   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Sport {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  icon      String   @default("dumbbell")
+  color     String   @default("#22c55e")
+  isActive  Boolean  @default(true)
+  routines  Json?
+  sessions  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model YogaExercise {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  description String?
+  duration    Int      @default(10)
+  difficulty  String   @default("beginner")
+  category    String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MeditationSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime
+  duration  Int
+  type      String   @default("mindfulness")
+  notes     String?
+  completed Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model YogaSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime
+  duration  Int      @default(0)
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Book {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  title        String
+  author       String?
+  totalPages   Int
+  currentPage  Int      @default(0)
+  startDate    DateTime  @default(now())
+  finishDate   DateTime?
+  status       String   @default("reading")
+  notes        Json?
+  pdfUrl       String?
+  pdfName      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model DiaryEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime
+  title     String?
+  content   String
+  mood      String   @default("good")
+  tags      Json?
+  gratitude Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LimitingBelief {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  belief       String
+  explanation  String?
+  dailyWork    String?
+  progress     Int      @default(0)
+  isOvercome   Boolean  @default(false)
+  reflections  Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Goal {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  title        String
+  description  String?
+  timeframe    String   @default("short")
+  category     String   @default("personal")
+  deadline     DateTime?
+  progress     Int      @default(0)
+  isCompleted  Boolean  @default(false)
+  milestones   Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Habit {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  description String?
+  icon        String   @default("check")
+  color       String   @default("#22c55e")
+  frequency   String   @default("daily")
+  customDays  Json?
+  isActive    Boolean  @default(true)
+  logs        Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String
+  amount      Float
+  category    String   @default("other")
+  description String?
+  date        DateTime
+  createdAt   DateTime @default(now())
+}
+
+model SavingsGoal {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  name          String
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  deadline      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  category    String
+  limitAmount Float
+  month       String
+  createdAt   DateTime @default(now())
+}
+
+model SleepLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime
+  sleepTime String?
+  wakeTime  String?
+  quality   Int      @default(3)
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model HydrationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime
+  glasses   Int      @default(0)
+  target    Int      @default(8)
+  createdAt DateTime @default(now())
+}
+
+model HealthEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime
+  weight    Float?
+  steps     Int?
+  calories  Int?
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model QuickNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  content   String?
+  category  String   @default("Otros")
+  color     String   @default("#ffffff")
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String   @default("Nueva conversación")
+  messages  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
