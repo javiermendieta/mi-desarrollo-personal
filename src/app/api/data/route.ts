@@ -335,3 +335,4 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
+// Force full redeploy - Sun Mar  8 14:20:23 UTC 2026
