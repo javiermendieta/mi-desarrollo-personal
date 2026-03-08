@@ -33,9 +33,16 @@ import {
   savePNLToDB, saveTransactionToDB, deleteTransactionFromDB 
 } from '@/lib/dbApi';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+
+// Helper para parsear fecha local sin conversión de zona horaria
+function parseLocalDate(dateString: string): Date {
+  if (!dateString) return new Date();
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
 
 const SECTION_CONFIG: Record<PNLSectionType, { label: string; color: string; sign: 'positive' | 'negative' }> = {
   gross_sales: { label: 'Venta Bruta', color: 'bg-green-50 dark:bg-green-950/30', sign: 'positive' },
@@ -781,7 +788,7 @@ export function FinanceModule() {
                 </div>
               ) : monthTransactions.length > 0 ? (
                 <div className="space-y-2">
-                  {monthTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => {
+                  {monthTransactions.sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime()).map(t => {
                     const account = accountPlan.find(a => a.id === t.accountId);
                     return (
                       <div key={t.id} className="flex justify-between items-center p-3 rounded-lg bg-muted/50 hover:bg-muted">
@@ -794,7 +801,7 @@ export function FinanceModule() {
                           <div>
                             <p className="font-medium">{t.description}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{format(new Date(t.date), 'd MMM yyyy')}</span>
+                              <span>{format(parseLocalDate(t.date), 'd MMM yyyy')}</span>
                               {account && (
                                 <>
                                   <span>•</span>
