@@ -1,0 +1,307 @@
+// JM CONSULTING - Database Schema
+// SQLite for development
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO CONSULTORÍA
+// ═══════════════════════════════════════════════════════════════
+
+model ProyectoConsultoria {
+  id            String   @id @default(cuid())
+  nombre        String
+  cliente       String
+  fechaInicio   DateTime
+  fechaFin      DateTime?
+  estado        String   @default("activo")
+  valorContrato Float?
+  notas         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  fases         Fase[]
+  entregables   Entregable[]
+
+  @@map("proyectos_consultoria")
+}
+
+model Fase {
+  id          String   @id @default(cuid())
+  proyectoId  String
+  nombre      String
+  orden       Int
+  fechaInicio DateTime
+  fechaFin    DateTime
+  estado      String   @default("planificado")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  proyecto    ProyectoConsultoria @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  semanas     Semana[]
+
+  @@map("fases")
+}
+
+model Semana {
+  id          String   @id @default(cuid())
+  faseId      String
+  numero      Int
+  fechaInicio DateTime
+  fechaFin    DateTime
+  estado      String   @default("pendiente")
+  notas       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fase        Fase @relation(fields: [faseId], references: [id], onDelete: Cascade)
+  tareas      Tarea[]
+
+  @@map("semanas")
+}
+
+model Tarea {
+  id              String    @id @default(cuid())
+  semanaId        String
+  titulo          String
+  descripcion     String?
+  estado          String    @default("pendiente")
+  prioridad       String    @default("media")
+  fechaLimite     DateTime?
+  fechaCompletado DateTime?
+  responsable     String?
+  notas           String?
+  orden           Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  semana          Semana @relation(fields: [semanaId], references: [id], onDelete: Cascade)
+
+  @@map("tareas")
+}
+
+model Entregable {
+  id              String   @id @default(cuid())
+  proyectoId      String
+  nombre          String
+  descripcion     String?
+  tipo            String
+  estado          String   @default("pendiente")
+  fechaEntrega    DateTime?
+  fechaAprobacion DateTime?
+  archivoUrl      String?
+  configuracion   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  proyecto        ProyectoConsultoria @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+
+  @@map("entregables")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO FORECAST
+// ═══════════════════════════════════════════════════════════════
+
+model Restaurante {
+  id              String          @id @default(cuid())
+  nombre          String
+  codigo          String?         @unique
+  activo          Boolean         @default(true)
+  orden           Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  forecastEntries ForecastEntry[]
+
+  @@map("restaurantes")
+}
+
+model Canal {
+  id              String          @id @default(cuid())
+  nombre          String
+  codigo          String?         @unique
+  activo          Boolean         @default(true)
+  orden           Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  forecastEntries ForecastEntry[]
+
+  @@map("canales")
+}
+
+model Turno {
+  id              String          @id @default(cuid())
+  nombre          String
+  codigo          String?         @unique
+  horaInicio      String?
+  horaFin         String?
+  activo          Boolean         @default(true)
+  orden           Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  forecastEntries ForecastEntry[]
+
+  @@map("turnos")
+}
+
+model TipoDia {
+  id              String          @id @default(cuid())
+  nombre          String
+  codigo          String          @unique
+  color           String?
+  icono           String?
+  activo          Boolean         @default(true)
+  orden           Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  forecastEntries ForecastEntry[]
+
+  @@map("tipos_dia")
+}
+
+model ForecastEntry {
+  id            String   @id @default(cuid())
+  fecha         DateTime
+  turnoId       String
+  restauranteId String
+  canalId       String
+  tipoDiaId     String
+
+  paxTeorico    Float    @default(0)
+  paxReal       Float    @default(0)
+  ventaTeorica  Float    @default(0)
+  ventaReal     Float    @default(0)
+  ticketTeorico Float    @default(0)
+  ticketReal    Float    @default(0)
+
+  semana        Int
+  mes           Int
+  trimestre     Int
+  año           Int
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  turno         Turno       @relation(fields: [turnoId], references: [id])
+  restaurante   Restaurante @relation(fields: [restauranteId], references: [id])
+  canal         Canal       @relation(fields: [canalId], references: [id])
+  tipoDia       TipoDia     @relation(fields: [tipoDiaId], references: [id])
+
+  @@unique([fecha, turnoId, restauranteId, canalId])
+  @@map("forecast_entries")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO P&L
+// ═══════════════════════════════════════════════════════════════
+
+model NivelPL {
+  id          String     @id @default(cuid())
+  codigo      String     @unique
+  nombre      String
+  orden       Int
+  descripcion String?
+  activo      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  cuentas     CuentaPL[]
+
+  @@map("niveles_pl")
+}
+
+model CuentaPL {
+  id          String    @id @default(cuid())
+  nivelId     String
+  nombre      String
+  codigo      String?
+  padreId     String?
+  orden       Int       @default(0)
+  esSubtotal  Boolean   @default(false)
+  esResultado Boolean   @default(false)
+  activo      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  nivel       NivelPL     @relation(fields: [nivelId], references: [id])
+  padre       CuentaPL?   @relation("CuentaJerarquia", fields: [padreId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subcuentas  CuentaPL[]  @relation("CuentaJerarquia")
+  valores     PLValor[]
+
+  @@map("cuentas_pl")
+}
+
+model PLValor {
+  id               String   @id @default(cuid())
+  cuentaId         String
+  periodo          String
+  tipoVista        String
+  forecastMonto    Float    @default(0)
+  forecastPorcentaje Float  @default(0)
+  realMonto        Float    @default(0)
+  realPorcentaje   Float    @default(0)
+  atribucion       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cuenta           CuentaPL @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
+
+  @@unique([cuentaId, periodo, tipoVista])
+  @@map("pl_valores")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIGURACIÓN
+// ═══════════════════════════════════════════════════════════════
+
+model Dimension {
+  id        String   @id @default(cuid())
+  nombre    String
+  activo    Boolean  @default(true)
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  valores   DimensionValor[]
+
+  @@map("dimensiones")
+}
+
+model DimensionValor {
+  id           String    @id @default(cuid())
+  dimensionId  String
+  nombre       String
+  codigo       String?
+  color        String?
+  activo       Boolean   @default(true)
+  orden        Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  dimension    Dimension @relation(fields: [dimensionId], references: [id], onDelete: Cascade)
+
+  @@map("dimension_valores")
+}
+
+model TemplateExcel {
+  id            String   @id @default(cuid())
+  nombre        String
+  descripcion   String?
+  tipo          String
+  configuracion String
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("templates_excel")
+}
