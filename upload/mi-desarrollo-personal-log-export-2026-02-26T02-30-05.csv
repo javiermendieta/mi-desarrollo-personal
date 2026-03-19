@@ -1,0 +1,53 @@
+TimeUTC,timestampInMs,requestPath,requestMethod,requestQueryString,responseStatusCode,requestId,requestUserAgent,level,environment,branch,vercelCache,type,function,host,deploymentDomain,deploymentId,durationMs,region,maxMemoryUsed,memorySize,message,projectId,traceId,sessionId,invocationId,instanceId,concurrency
+2026-02-26 02:22:59,1772072579209,mi-desarrollo-personal.vercel.app/api/auth/register,POST,,500,pgddq-1772072578747-bd977028678d,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",error,production,main,MISS,function,/api/auth/register,mi-desarrollo-personal.vercel.app,mi-desarrollo-personal.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,,,,,"Register error: Error [PrismaClientInitializationError]: 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+Can't reach database server at `db.rhckmjhtqovfcgfwhpoj.supabase.co:5432`
+
+Please make sure your database server is running at `db.rhckmjhtqovfcgfwhpoj.supabase.co:5432`.
+    at async E (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:1808)
+    at async d (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:5343)
+    at async l (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:6384) {
+  clientVersion: '6.19.2',
+  errorCode: undefined,
+  retryable: undefined
+}",prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,,,
+2026-02-26 02:22:58,1772072578747,mi-desarrollo-personal.vercel.app/api/auth/register,POST,,500,pgddq-1772072578747-bd977028678d,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,MISS,function,/api/auth/register,mi-desarrollo-personal.vercel.app,mi-desarrollo-personal.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,201,sfo1,264,2048,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,01KJBW3BXK06RBG5DX5J2BVRT8,Bve4rz1tLLFe,1
+2026-02-26 02:22:42,1772072562712,mi-desarrollo-personal.vercel.app/api/auth/me,GET,,200,949ps-1772072562712-c30949d80adc,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",,production,main,MISS,function,/api/auth/me,mi-desarrollo-personal.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,11,sfo1,256,2048,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,01KJBW2W3PGYSCRA526P1DQTHH,Bve4rz1tLLFe,1
+2026-02-26 02:22:36,1772072556205,mi-desarrollo-personal.vercel.app/api/auth/me,GET,,200,m6zx9-1772072556205-b0a83995a792,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,MISS,function,/api/auth/me,mi-desarrollo-personal.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,418,sfo1,255,2048,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,01KJBW2NRN4T3NSRTXF9V1FYZH,Bve4rz1tLLFe,1
+2026-02-26 02:22:34,1772072554606,mi-desarrollo-personal.vercel.app/,GET,,200,wch6c-1772072554606-506805622f8a,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,PRERENDER,static,/,mi-desarrollo-personal.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,208,gru1,,,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,,,
+2026-02-26 02:05:56,1772071556799,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/api/auth/register,POST,,500,c9mqq-1772071556651-37da30cb1f09,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",error,production,main,MISS,function,/api/auth/register,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,,,,,"Register error: Error [PrismaClientInitializationError]: 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+Can't reach database server at `db.rhckmjhtqovfcgfwhpoj.supabase.co:5432`
+
+Please make sure your database server is running at `db.rhckmjhtqovfcgfwhpoj.supabase.co:5432`.
+    at async E (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:1808)
+    at async d (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:5343)
+    at async l (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:6384) {
+  clientVersion: '6.19.2',
+  errorCode: undefined,
+  retryable: undefined
+}",prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,,,
+2026-02-26 02:05:56,1772071556651,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/api/auth/register,POST,,500,c9mqq-1772071556651-37da30cb1f09,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,MISS,function,/api/auth/register,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,34,sfo1,272,2048,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,01KJBV45MEDY9DRBT4978W58Q5,4vttkytrLkxb,1
+2026-02-26 02:05:34,1772071534110,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/api/auth/me,GET,,200,w64l6-1772071534110-021e9a89eff2,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,MISS,function,/api/auth/me,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,10,sfo1,272,2048,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,01KJBV3FKZVF5GJZQPBQKV9KA4,4vttkytrLkxb,1
+2026-02-26 02:05:33,1772071533274,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/,GET,,304,vxh6x-1772071533274-08379f42027f,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,HIT,static,/,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,10,gru1,,,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,,,
+2026-02-26 02:03:19,1772071399420,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/api/auth/register,POST,,500,jxlrp-1772071399275-b3c0cfaaedc7,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",error,production,main,MISS,function,/api/auth/register,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,,,,,"Register error: Error [PrismaClientInitializationError]: 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+Can't reach database server at `db.rhckmjhtqovfcgfwhpoj.supabase.co:5432`
+
+Please make sure your database server is running at `db.rhckmjhtqovfcgfwhpoj.supabase.co:5432`.
+    at async E (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:1808)
+    at async d (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:5343)
+    at async l (.next/server/chunks/[root-of-the-server]__0a1f9029._.js:1:6384) {
+  clientVersion: '6.19.2',
+  errorCode: undefined,
+  retryable: undefined
+}",prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,,,
+2026-02-26 02:03:19,1772071399275,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/api/auth/register,POST,,500,jxlrp-1772071399275-b3c0cfaaedc7,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,MISS,function,/api/auth/register,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,61,sfo1,269,2048,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,01KJBTZBYHZ7FCXC2R8CAAJCTD,4vttkytrLkxb,1
+2026-02-26 02:02:40,1772071360869,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/api/auth/me,GET,,200,mvh7d-1772071360869-e3c2d9bcf5c6,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,MISS,function,/api/auth/me,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,15,sfo1,267,2048,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,01KJBTY6EDZH4DS3MMQ12SF209,4vttkytrLkxb,1
+2026-02-26 02:02:39,1772071359609,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app/,GET,,200,nzf88-1772071359609-58aa1ac62fc9,"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",,production,main,HIT,static,/,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,mi-desarrollo-personal-9q05ueo1j-mateovegacoach-2122s-projects.vercel.app,dpl_9pE93qHYD6ATK6GYcGMyJacascYs,12,gru1,,,,prj_rk2kgTCyHNkOcXpIzkx6W1KQec9y,,,,,
