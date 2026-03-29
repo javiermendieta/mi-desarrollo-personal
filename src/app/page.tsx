@@ -15,6 +15,7 @@ import { HealthModule } from '@/components/modules/HealthModule';
 import { NotesModule } from '@/components/modules/NotesModule';
 import { ProgressModule } from '@/components/modules/ProgressModule';
 import { ProjectsModule } from '@/components/modules/ProjectsModule';
+import { SpiritualModule } from '@/components/modules/SpiritualModule';
 import { AIAssistant } from '@/components/AIAssistant';
 import { AuthForm } from '@/components/AuthForm';
 import { useAppStore } from '@/lib/store';
@@ -148,6 +149,8 @@ export default function Home() {
         return <ProgressModule key={Date.now()} />;
       case 'projects':
         return <ProjectsModule />;
+      case 'spiritual':
+        return <SpiritualModule />;
       default:
         return <Dashboard onNavigate={setActiveSection} />;
     }

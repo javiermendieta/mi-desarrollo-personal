@@ -468,6 +468,55 @@ export interface AppSettings {
   weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6;
 }
 
+// ==================== SPIRITUAL ====================
+export type SpiritualPracticeType = 
+  | 'rosary' 
+  | 'morning_prayer' 
+  | 'evening_prayer' 
+  | 'mass' 
+  | 'confession' 
+  | 'bible' 
+  | 'adoration' 
+  | 'fasting' 
+  | 'via_crucis'
+  | 'angelus'
+  | 'chaplet'
+  | 'liturgy'
+  | 'custom';
+
+export type SpiritualLevel = 'beginner' | 'intermediate' | 'advanced' | 'contemplative';
+
+export interface SpiritualPracticeLog {
+  date: string;
+  completed: boolean;
+  notes?: string;
+}
+
+export interface SpiritualPractice {
+  id: string;
+  name: string;
+  type: SpiritualPracticeType;
+  icon: string;
+  color: string;
+  schedule?: string; // HH:mm format
+  isActive: boolean;
+  logs: SpiritualPracticeLog[];
+  createdAt: string;
+}
+
+export interface SpiritualPanicLog {
+  id: string;
+  date: string;
+  message: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface SpiritualSettings {
+  level: SpiritualLevel;
+  phrases?: string[];
+}
+
 export interface AppData {
   settings: AppSettings;
   aiProfile: AIProfile;
@@ -497,4 +546,7 @@ export interface AppData {
   socialMediaPosts: SocialMediaPost[];
   commercialLeads: CommercialLead[];
   projectAlerts: ProjectAlert[];
+  spiritualPractices: SpiritualPractice[];
+  spiritualPanicLogs: SpiritualPanicLog[];
+  spiritualSettings: SpiritualSettings;
 }

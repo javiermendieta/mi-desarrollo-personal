@@ -458,6 +458,9 @@ model User {
   Transaction        Transaction[]
   YogaExercise       YogaExercise[]
   YogaSession        YogaSession[]
+  SpiritualPractice  SpiritualPractice[]
+  SpiritualPanicLog  SpiritualPanicLog[]
+  SpiritualSettings  SpiritualSettings?
 }
 
 model YogaExercise {
@@ -484,4 +487,44 @@ model YogaSession {
   User      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, date])
+}
+
+// ==================== SPIRITUAL MODULE ====================
+model SpiritualPractice {
+  id          String   @id
+  userId      String
+  name        String
+  type        String   // rosary, prayer, mass, confession, bible, adoration, fasting, via_crucis
+  icon        String   @default("cross")
+  color       String   @default("#8B5CF6")
+  schedule    String?  // Horario configurado (HH:mm)
+  isActive    Boolean  @default(true)
+  logs        Json?    // [{date: "2024-01-15", completed: true, notes: "..."}]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  User        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, type])
+}
+
+model SpiritualPanicLog {
+  id        String   @id
+  userId    String
+  date      DateTime @default(now())
+  message   String
+  notes     String?
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, date])
+}
+
+model SpiritualSettings {
+  id        String   @id
+  userId    String   @unique
+  level     String   @default("beginner") // beginner, intermediate, advanced, contemplative
+  phrases   Json?    // Array de frases personalizadas
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User     @relation(fields: [userId], references: [id])
 }

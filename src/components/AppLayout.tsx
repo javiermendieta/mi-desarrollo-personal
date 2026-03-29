@@ -54,6 +54,7 @@ const navItems: NavItem[] = [
   { id: 'progress', label: 'Progreso', icon: <TrendingUp className="h-5 w-5" /> },
   { id: 'projects', label: 'Proyectos', icon: <FolderKanban className="h-5 w-5" /> },
   { id: 'calendar', label: 'Calendario', icon: <Calendar className="h-5 w-5" /> },
+  { id: 'spiritual', label: 'Vida Espiritual', icon: <Heart className="h-5 w-5 text-violet-500" /> },
   { id: 'sports', label: 'Deportes', icon: <Dumbbell className="h-5 w-5" /> },
   { id: 'yoga', label: 'Yoga & Meditación', icon: <Flower2 className="h-5 w-5" /> },
   { id: 'reading', label: 'Lectura', icon: <BookOpen className="h-5 w-5" /> },
