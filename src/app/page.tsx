@@ -10,6 +10,7 @@ import { ReadingModule } from '@/components/modules/ReadingModule';
 import { DiaryModule } from '@/components/modules/DiaryModule';
 import { GoalsModule } from '@/components/modules/GoalsModule';
 import { HabitsModule } from '@/components/modules/HabitsModule';
+import { SpiritualModule } from '@/components/modules/SpiritualModule';
 import { FinanceModule } from '@/components/modules/FinanceModule';
 import { HealthModule } from '@/components/modules/HealthModule';
 import { NotesModule } from '@/components/modules/NotesModule';
@@ -138,6 +139,8 @@ export default function Home() {
         return <GoalsModule />;
       case 'habits':
         return <HabitsModule />;
+      case 'spiritual':
+        return <SpiritualModule />;
       case 'finances':
         return <FinanceModule />;
       case 'health':

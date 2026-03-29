@@ -27,6 +27,7 @@ import {
   LogOut,
   TrendingUp,
   FolderKanban,
+  Cross,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -56,6 +57,7 @@ const navItems: NavItem[] = [
   { id: 'calendar', label: 'Calendario', icon: <Calendar className="h-5 w-5" /> },
   { id: 'sports', label: 'Deportes', icon: <Dumbbell className="h-5 w-5" /> },
   { id: 'yoga', label: 'Yoga & Meditación', icon: <Flower2 className="h-5 w-5" /> },
+  { id: 'spiritual', label: 'Vida Espiritual', icon: <Cross className="h-5 w-5" /> },
   { id: 'reading', label: 'Lectura', icon: <BookOpen className="h-5 w-5" /> },
   { id: 'diary', label: 'Diario', icon: <PenLine className="h-5 w-5" /> },
   { id: 'goals', label: 'Metas', icon: <Target className="h-5 w-5" /> },
