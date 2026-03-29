@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "TURBOPACK=0 next dev -p 3000 2>&1 | tee dev.log",
-    "build": "bash -c 'if [ -f .config ]; then mv .config .config.bak; fi && prisma generate && prisma db push --accept-data-loss && next build; if [ -f .config.bak ]; then mv .config.bak .config; fi'",
+    "build": "prisma generate && prisma db push --accept-data-loss && next build",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "postinstall": "bash -c 'if [ -f .config ]; then mv .config .config.bak; fi && prisma generate; if [ -f .config.bak ]; then mv .config.bak .config; fi' || echo 'Prisma generate skipped'"
+    "postinstall": "prisma generate || echo 'Prisma generate skipped'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

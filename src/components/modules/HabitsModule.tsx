@@ -112,64 +112,44 @@ export function HabitsModule() {
     if (!name.trim()) return;
     setIsSaving(true);
 
+    const habitData: Partial<Habit> = {
+      name,
+      description: description || undefined,
+      frequency,
+      color,
+      icon: 'check',
+    };
+
     try {
       if (editingHabit) {
-        const res = await fetch('/api/habits', {
+        await fetch('/api/habits', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingHabit.id,
-            name,
-            description: description || null,
-            frequency,
-            color,
-          }),
+          body: JSON.stringify({ id: editingHabit.id, ...habitData }),
         });
-        
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
-          throw new Error(errorData.error || 'Error al actualizar');
-        }
-        
-        setHabits(habits.map(h => h.id === editingHabit.id ? { 
-          ...h, 
-          name, 
-          description, 
-          frequency, 
-          color 
-        } : h));
+        setHabits(habits.map(h => h.id === editingHabit.id ? { ...h, ...habitData } : h));
       } else {
-        const newHabit = {
+        const newHabit: Habit = {
           id: uuidv4(),
-          name,
-          description: description || null,
-          frequency,
-          color,
-          icon: 'check',
+          createdAt: new Date().toISOString(),
           isActive: true,
           logs: [],
-        };
+          ...habitData,
+        } as Habit;
         
-        const res = await fetch('/api/habits', {
+        await fetch('/api/habits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newHabit),
         });
-        
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: 'Error desconocido' }));
-          throw new Error(errorData.error || 'Error al crear');
-        }
-        
-        const data = await res.json();
-        setHabits([...habits, data.habit]);
+        setHabits([...habits, newHabit]);
       }
 
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
       console.error('Error saving habit:', error);
-      alert(error instanceof Error ? error.message : 'Error al guardar. Intenta de nuevo.');
+      alert('Error al guardar. Intenta de nuevo.');
     } finally {
       setIsSaving(false);
     }
