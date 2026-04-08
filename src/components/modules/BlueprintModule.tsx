@@ -51,7 +51,7 @@ import { cn } from '@/lib/utils';
 
 // Frases de choque rotativas
 const SHOCK_PHRASES = [
-  "Tenés 44 años y estás arriba de una moto. Cada minuto de paja es un minuto más de humillación. ¡LEVANTATE!",
+  "Mi cifosis es la falta de liderazgo de mi papá. La falta de musculatura de Mitre es mi falta de liderazgo.",
   "La consultoría hoy es el local propio mañana. Regalás tu tiempo ahora para comprar tu libertad después.",
   "¿Querés ser el gerente de otro o el dueño de tu imperio? La diferencia son los Reels de hoy.",
   "El entorno no te ayuda. Sos vos contra el mundo. Aislate y metele rock.",
