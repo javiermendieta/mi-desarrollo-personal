@@ -51,8 +51,9 @@ import { cn } from '@/lib/utils';
 
 // Frases de choque rotativas
 const SHOCK_PHRASES = [
-  "Mi cifosis es la falta de liderazgo de mi papá. La falta de musculatura de Mitre es mi falta de liderazgo.",
+  "Mi cifosis es la falta de liderazgo de mi papá. La falta de musculatura de Dimitri es mi falta de liderazgo.",
   "La mugre de mi casa es mi desorden interno. Como es arriba es abajo, como es adentro es afuera.",
+  "El desorden de mi casa es mi desorden interno. Como es arriba es abajo.",
   "La consultoría hoy es el local propio mañana. Regalás tu tiempo ahora para comprar tu libertad después.",
   "¿Querés ser el gerente de otro o el dueño de tu imperio? La diferencia son los Reels de hoy.",
   "El entorno no te ayuda. Sos vos contra el mundo. Aislate y metele rock.",
