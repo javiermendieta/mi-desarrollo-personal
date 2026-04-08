@@ -44,6 +44,8 @@ import {
   Hourglass,
   Trophy,
   TrendingUp,
+  Sparkles,
+  Infinity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -65,6 +67,64 @@ const BIBLICAL_VERSES: Record<number, { verse: string; reference: string }> = {
   6: { verse: "El alma de los diligentes será prosperada.", reference: "Proverbios 13:4" },
   0: { verse: "Seis días trabajarás, y harás toda tu obra.", reference: "Éxodo 20:9" },
 };
+
+// Principios del Kybalion - Sabiduría Hermética
+const KYBALION_PRINCIPLES = [
+  {
+    name: "Principio del Mentalismo",
+    phrase: "EL TODO ES MENTE; el universo es mental.",
+    explanation: "Todo lo que existe es creación mental del Todo. Tu mente crea tu realidad."
+  },
+  {
+    name: "Principio de Correspondencia",
+    phrase: "Como es arriba, es abajo; como es abajo, es arriba.",
+    explanation: "Los mismos patrones se repiten en todos los planos de existencia. Lo que hacés en tu vida diaria se refleja en tu destino."
+  },
+  {
+    name: "Principio de Vibración",
+    phrase: "Nada está inmóvil; todo se mueve; todo vibra.",
+    explanation: "Todo está en constante movimiento. Tu energía y frecuencia determinan lo que atraés."
+  },
+  {
+    name: "Principio de Polaridad",
+    phrase: "Todo es dual; todo tiene dos polos; todo tiene su par de opuestos.",
+    explanation: "Los opuestos son lo mismo en naturaleza, solo difieren en grado. Del odio al amor hay un paso."
+  },
+  {
+    name: "Principio del Ritmo",
+    phrase: "Todo fluye, afuera y adentro; toda cosa tiene sus ciclos.",
+    explanation: "Todo tiene sus ciclos de subida y bajada. Aceptá los ritmos de la vida."
+  },
+  {
+    name: "Principio de Causa y Efecto",
+    phrase: "Toda causa tiene su efecto; todo efecto tiene su causa.",
+    explanation: "Nada escapa a la Ley. Cada acción que hacés hoy siembra las semillas de tu mañana."
+  },
+  {
+    name: "Principio de Generación",
+    phrase: "Todo tiene su principio masculino y femenino.",
+    explanation: "En todo hay aspectos yin y yang. El equilibrio entre acción y recepción genera creación."
+  }
+];
+
+// Aforismos del Kybalion
+const KYBALION_APHORISMS = [
+  "Como es arriba, es abajo; como es abajo, es arriba.",
+  "Dondequiera que se halle la vibración, allí se encuentra el movimiento.",
+  "El que comprende el Principio de Vibración, ha tomado la llave del poder.",
+  "Todo es dual; todo tiene dos polos; todo tiene su par de opuestos.",
+  "Los opuestos son idénticos en naturaleza, pero diferentes en grado.",
+  "Todo fluye, afuera y adentro; toda cosa tiene sus ciclos.",
+  "La medida de la oscilación hacia la derecha es la misma que hacia la izquierda.",
+  "Toda causa tiene su efecto; todo efecto tiene su causa.",
+  "Nada escapa a la Ley.",
+  "El TODO es MENTE; el universo es mental.",
+  "La transmutación es el arte de cambiar una cosa en otra.",
+  "El sabio sirve en lo de arriba, pero trabaja en lo de abajo.",
+  "El que conoce la ley del ritmo, puede neutralizar sus efectos.",
+  "La mente así como los metales y los elementos, puede transmutarse.",
+  "Ninguna creación física puede escapar a la Ley de Generación.",
+];
 
 // Tareas por defecto del Blueprint
 const DEFAULT_TASKS: Omit<BlueprintTask, 'id' | 'createdAt' | 'updatedAt'>[] = [
@@ -106,6 +166,7 @@ export function BlueprintModule() {
   } = useAppStore();
 
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+  const [currentKybalionIndex, setCurrentKybalionIndex] = useState(0);
   const [streaks, setStreaks] = useState<StreakData>({});
   const [totalCompleted, setTotalCompleted] = useState<TotalCompletedData>({});
   const [completedDates, setCompletedDates] = useState<CompletedDatesData>({});
@@ -222,6 +283,14 @@ export function BlueprintModule() {
     const interval = setInterval(() => {
       setCurrentPhraseIndex((prev) => (prev + 1) % SHOCK_PHRASES.length);
     }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Rotar aforismos del Kybalion cada 20 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentKybalionIndex((prev) => (prev + 1) % KYBALION_APHORISMS.length);
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -728,6 +797,63 @@ export function BlueprintModule() {
                 No hay tareas activas. Agregá tareas para comenzar el desafío.
               </div>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sabiduría Hermética - El Kybalion */}
+      <Card className="bg-gradient-to-r from-violet-950/80 to-purple-950/80 border-violet-600 overflow-hidden">
+        <CardContent className="p-6">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-violet-600/30 rounded-full">
+                <Infinity className="h-6 w-6 text-violet-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-violet-100">EL KYBALION</h3>
+                <p className="text-xs text-violet-400">Enseñanzas Herméticas de Hermes Trismegisto</p>
+              </div>
+            </div>
+
+            {/* Aforismo rotativo destacado */}
+            <div className="bg-violet-900/40 rounded-lg p-4 border border-violet-700/50">
+              <p className="text-xl font-semibold text-center text-violet-100 leading-relaxed transition-opacity duration-500">
+                "{KYBALION_APHORISMS[currentKybalionIndex]}"
+              </p>
+            </div>
+
+            {/* Los 7 Principios */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-violet-300 uppercase tracking-wider">Los 7 Principios Herméticos</h4>
+              <div className="grid gap-2">
+                {KYBALION_PRINCIPLES.map((principle, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "p-3 rounded-lg border transition-all cursor-pointer",
+                      index === currentKybalionIndex % KYBALION_PRINCIPLES.length
+                        ? "bg-violet-800/50 border-violet-500"
+                        : "bg-violet-900/20 border-violet-800/30 hover:bg-violet-900/30"
+                    )}
+                    onClick={() => setCurrentKybalionIndex(index)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-violet-400" />
+                      <span className="font-medium text-violet-200 text-sm">{principle.name}</span>
+                    </div>
+                    <p className="text-xs text-violet-300 mt-1 italic ml-6">"{principle.phrase}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Principio expandido */}
+            <div className="bg-gradient-to-r from-violet-900/60 to-purple-900/60 rounded-lg p-4 border border-violet-600/50">
+              <p className="text-sm text-violet-200 leading-relaxed">
+                {KYBALION_PRINCIPLES[currentKybalionIndex % KYBALION_PRINCIPLES.length].explanation}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
