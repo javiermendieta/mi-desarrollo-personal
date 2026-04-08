@@ -1,3 +1,4 @@
+// Force rebuild - fix @updatedAt for all models - 2026-04-07
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
@@ -18,7 +19,7 @@ model AIProfile {
   values            String?
   interests         String?
   createdAt         DateTime @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime @updatedAt
   User              User     @relation(fields: [userId], references: [id])
 }
 
@@ -33,7 +34,7 @@ model AccountPlanItem {
   order       Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   isDefault   Boolean  @default(false)
   section     String   @default("gross_sales")
   User        User     @relation(fields: [userId], references: [id])
@@ -57,6 +58,39 @@ model Activity {
   @@index([userId, type])
 }
 
+model BlueprintTask {
+  id          String             @id
+  userId      String
+  title       String
+  time        String
+  description String?
+  days        Json?
+  order       Int                @default(0)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  User        User               @relation(fields: [userId], references: [id])
+  logs        BlueprintTaskLog[]
+
+  @@index([userId])
+  @@index([userId, order])
+}
+
+model BlueprintTaskLog {
+  id        String        @id
+  userId    String
+  taskId    String
+  date      DateTime
+  completed Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  Task      BlueprintTask @relation(fields: [taskId], references: [id])
+  User      User          @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, date])
+  @@index([userId, date])
+  @@index([userId, taskId])
+}
+
 model Book {
   id          String    @id
   userId      String
@@ -69,7 +103,7 @@ model Book {
   status      String    @default("reading")
   notes       Json?
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime  @updatedAt
   pdfUrl      String?
   pdfName     String?
   User        User      @relation(fields: [userId], references: [id])
@@ -100,38 +134,40 @@ model CalendarEvent {
   recurrencePattern String?
   recurrenceEnd     DateTime?
   createdAt         DateTime  @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime  @updatedAt
   User              User      @relation(fields: [userId], references: [id])
 
   @@index([userId, startDate])
 }
 
 model CommercialLead {
-  id          String   @id
-  userId      String
-  name        String
-  company     String?
-  email       String?
-  phone       String?
-  source      String?
-  status      String   @default("new")
-  value       Float?
-  probability Int?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime
-  User        User     @relation(fields: [userId], references: [id])
+  id           String    @id
+  userId       String
+  name         String
+  company      String?
+  email        String?
+  phone        String?
+  source       String?
+  status       String    @default("new")
+  value        Float?
+  probability  Int?
+  notes        String?
+  nextFollowUp DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  User         User      @relation(fields: [userId], references: [id])
 
   @@index([userId, status])
+  @@index([userId, nextFollowUp])
 }
 
 model Conversation {
   id        String   @id
   userId    String
-  title     String   @default("Nueva conversación")
+  title     String   @default("Nouvelle conversation")
   messages  Json?
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id])
 }
 
@@ -145,7 +181,7 @@ model DiaryEntry {
   tags      Json?
   gratitude Json?
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, date])
@@ -163,7 +199,7 @@ model Goal {
   isCompleted Boolean   @default(false)
   milestones  Json?
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime  @updatedAt
   User        User      @relation(fields: [userId], references: [id])
 }
 
@@ -179,7 +215,7 @@ model Habit {
   isActive    Boolean  @default(true)
   logs        Json?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   User        User     @relation(fields: [userId], references: [id])
 }
 
@@ -219,7 +255,7 @@ model LimitingBelief {
   isOvercome  Boolean  @default(false)
   reflections Json?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   User        User     @relation(fields: [userId], references: [id])
 }
 
@@ -233,7 +269,7 @@ model MedicalAppointment {
   notes     String?
   status    String   @default("scheduled")
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   title     String?
   time      String?  @default("10:00")
   reminder  Boolean? @default(false)
@@ -251,7 +287,7 @@ model MedicalTask {
   completed   Boolean   @default(false)
   priority    String    @default("medium")
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime  @updatedAt
   category    String?   @default("other")
   notes       String?
   User        User      @relation(fields: [userId], references: [id])
@@ -279,7 +315,7 @@ model PNLData {
   period       String
   accountPlans Json?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   User         User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, period])
@@ -301,7 +337,7 @@ model Project {
   documents   Json?
   meetings    Json?
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime  @updatedAt
   User        User      @relation(fields: [userId], references: [id])
 
   @@index([userId, status])
@@ -333,7 +369,7 @@ model QuickNote {
   color     String   @default("#ffffff")
   isPinned  Boolean  @default(false)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id])
 }
 
@@ -345,7 +381,7 @@ model SavingsGoal {
   currentAmount Float     @default(0)
   deadline      DateTime?
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime  @updatedAt
   User          User      @relation(fields: [userId], references: [id])
 }
 
@@ -357,7 +393,7 @@ model Settings {
   notifications Boolean  @default(true)
   weekStartsOn  Int      @default(1)
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   User          User     @relation(fields: [userId], references: [id])
 }
 
@@ -375,6 +411,39 @@ model SleepLog {
   @@index([userId, date])
 }
 
+model SocialMediaPost {
+  id          String    @id
+  userId      String
+  platform    String
+  content     String
+  status      String    @default("draft")
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  mediaUrl    String?
+  tags        Json?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  User        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, platform])
+  @@index([userId, scheduledAt])
+}
+
+model Sport {
+  id        String   @id
+  userId    String
+  name      String
+  icon      String   @default("dumbbell")
+  color     String   @default("#22c55e")
+  isActive  Boolean  @default(true)
+  routines  Json?
+  sessions  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  User      User     @relation(fields: [userId], references: [id])
+}
+
 model SpiritualPractice {
   id        String   @id
   userId    String
@@ -386,7 +455,7 @@ model SpiritualPractice {
   isActive  Boolean  @default(true)
   logs      Json?
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
@@ -410,39 +479,7 @@ model SpiritualSettings {
   level     String   @default("beginner")
   phrases   Json?
   createdAt DateTime @default(now())
-  updatedAt DateTime
-  User      User     @relation(fields: [userId], references: [id])
-}
-
-model SocialMediaPost {
-  id          String    @id
-  userId      String
-  platform    String
-  content     String
-  status      String    @default("draft")
-  scheduledAt DateTime?
-  publishedAt DateTime?
-  mediaUrl    String?
-  tags        Json?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime
-  User        User      @relation(fields: [userId], references: [id])
-
-  @@index([userId, platform])
-  @@index([userId, scheduledAt])
-}
-
-model Sport {
-  id        String   @id
-  userId    String
-  name      String
-  icon      String   @default("dumbbell")
-  color     String   @default("#22c55e")
-  isActive  Boolean  @default(true)
-  routines  Json?
-  sessions  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   User      User     @relation(fields: [userId], references: [id])
 }
 
@@ -467,10 +504,12 @@ model User {
   password           String
   name               String?
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime             @updatedAt
   AIProfile          AIProfile?
   AccountPlanItem    AccountPlanItem[]
   Activity           Activity[]
+  BlueprintTask      BlueprintTask[]
+  BlueprintTaskLog   BlueprintTaskLog[]
   Book               Book[]
   Budget             Budget[]
   CalendarEvent      CalendarEvent[]
@@ -512,7 +551,7 @@ model YogaExercise {
   category    String?
   imageUrl    String?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
   User        User     @relation(fields: [userId], references: [id])
 }
 

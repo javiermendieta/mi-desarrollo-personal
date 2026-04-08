@@ -9,6 +9,7 @@ import type {
   HealthEntry, QuickNote, AIConversation, Project, ProjectTask, Milestone,
   SocialMediaPost, CommercialLead, ProjectDocument, ProjectMeeting, ProjectAlert,
   MedicalAppointment, MedicalTask, PNLData, PNLAccountPlan, AccountPlanItem,
+  BlueprintTask, BlueprintTaskLog,
 } from '@/types';
 
 const defaultSettings: AppSettings = {
@@ -53,6 +54,8 @@ const defaultData: Omit<AppData, 'settings' | 'aiProfile'> = {
   socialMediaPosts: [],
   commercialLeads: [],
   projectAlerts: [],
+  blueprintTasks: [],
+  blueprintTaskLogs: [],
 };
 
 interface AppState extends AppData {
@@ -163,6 +166,13 @@ interface AppState extends AppData {
   deleteProjectAlert: (id: string) => void;
   dismissProjectAlert: (id: string) => void;
   markAlertAsRead: (id: string) => void;
+  // Blueprint
+  setBlueprintTasks: (tasks: BlueprintTask[]) => void;
+  addBlueprintTask: (task: BlueprintTask) => void;
+  updateBlueprintTask: (id: string, task: Partial<BlueprintTask>) => void;
+  deleteBlueprintTask: (id: string) => void;
+  setBlueprintTaskLogs: (logs: BlueprintTaskLog[]) => void;
+  toggleBlueprintTaskLog: (taskId: string, date: string, completed: boolean) => void;
   // Data management
   importAllData: (data: AppData) => void;
   resetAllData: () => void;
@@ -374,6 +384,22 @@ export const useAppStore = create<AppState>()(
       dismissProjectAlert: (id) => set((state) => ({ projectAlerts: state.projectAlerts.map((a) => a.id === id ? { ...a, isDismissed: true } : a) })),
       markAlertAsRead: (id) => set((state) => ({ projectAlerts: state.projectAlerts.map((a) => a.id === id ? { ...a, isRead: true } : a) })),
 
+      // Blueprint - ordenados por horario automáticamente
+      setBlueprintTasks: (tasks) => set(() => ({ blueprintTasks: [...tasks].sort((a, b) => a.time.localeCompare(b.time)) })),
+      addBlueprintTask: (task) => set((state) => ({ blueprintTasks: [...state.blueprintTasks, task].sort((a, b) => a.time.localeCompare(b.time)) })),
+      updateBlueprintTask: (id, task) => set((state) => ({ blueprintTasks: state.blueprintTasks.map((t) => t.id === id ? { ...t, ...task, updatedAt: new Date().toISOString() } : t).sort((a, b) => a.time.localeCompare(b.time)) })),
+      deleteBlueprintTask: (id) => set((state) => ({ blueprintTasks: state.blueprintTasks.filter((t) => t.id !== id) })),
+      setBlueprintTaskLogs: (logs) => set(() => ({ blueprintTaskLogs: logs })),
+      toggleBlueprintTaskLog: (taskId, date, completed) => set((state) => {
+        const existingIdx = state.blueprintTaskLogs.findIndex((l) => l.taskId === taskId && l.date === date);
+        if (existingIdx >= 0) {
+          const newLogs = [...state.blueprintTaskLogs];
+          newLogs[existingIdx] = { ...newLogs[existingIdx], completed };
+          return { blueprintTaskLogs: newLogs };
+        }
+        return { blueprintTaskLogs: [...state.blueprintTaskLogs, { id: crypto.randomUUID(), taskId, date, completed, createdAt: new Date().toISOString() }] };
+      }),
+
       // Data management
       importAllData: (data) => {
         // Limpiar localStorage antes de importar para evitar conflictos
@@ -409,6 +435,8 @@ export const useAppStore = create<AppState>()(
           socialMediaPosts: data.socialMediaPosts || [],
           commercialLeads: data.commercialLeads || [],
           projectAlerts: data.projectAlerts || [],
+          blueprintTasks: data.blueprintTasks || [],
+          blueprintTaskLogs: data.blueprintTaskLogs || [],
         }));
       },
       resetAllData: () => set(() => ({ settings: defaultSettings, aiProfile: defaultAIProfile, ...defaultData })),
@@ -416,6 +444,11 @@ export const useAppStore = create<AppState>()(
     {
       name: 'personal-dev-storage',
       storage: createJSONStorage(() => localStorage),
+      // Solo persistir settings y aiProfile, el resto viene de la base de datos
+      partialize: (state) => ({
+        settings: state.settings,
+        aiProfile: state.aiProfile,
+      }),
     }
   )
 );

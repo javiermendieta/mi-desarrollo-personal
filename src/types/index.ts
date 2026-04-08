@@ -460,6 +460,27 @@ export interface Project {
   completedAt?: string;
 }
 
+// ==================== BLUEPRINT ====================
+export interface BlueprintTask {
+  id: string;
+  title: string;
+  time: string; // Horario: "05:00", "05:10", etc.
+  description?: string;
+  days?: number[]; // Array de días: [0,1,2,3,4,5,6] donde 0=domingo, undefined = todos los días
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlueprintTaskLog {
+  id: string;
+  taskId: string;
+  date: string; // Fecha del completado
+  completed: boolean;
+  createdAt: string;
+}
+
 // ==================== APP STATE ====================
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -497,4 +518,6 @@ export interface AppData {
   socialMediaPosts: SocialMediaPost[];
   commercialLeads: CommercialLead[];
   projectAlerts: ProjectAlert[];
+  blueprintTasks: BlueprintTask[];
+  blueprintTaskLogs: BlueprintTaskLog[];
 }

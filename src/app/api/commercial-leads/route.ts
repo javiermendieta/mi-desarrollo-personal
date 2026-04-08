@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       value: l.value || undefined,
       probability: l.probability || undefined,
       notes: l.notes || undefined,
-      nextFollowUp: undefined, // Schema doesn't have this field
+      nextFollowUp: l.nextFollowUp ? l.nextFollowUp.toISOString().split('T')[0] : undefined,
       createdAt: l.createdAt.toISOString(),
       updatedAt: l.updatedAt.toISOString(),
     }));
@@ -49,9 +49,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const data = await request.json();
+    // Parse nextFollowUp date
+    let nextFollowUp: Date | null = null;
+    if (data.nextFollowUp) {
+      nextFollowUp = new Date(data.nextFollowUp);
+    }
+
     const lead = await db.commercialLead.create({
       data: {
-        id: data.id || undefined, // Use provided id or let Prisma generate one
+        id: data.id || crypto.randomUUID(),
         userId,
         name: data.name || 'Sin nombre',
         company: data.company || null,
@@ -62,6 +68,7 @@ export async function POST(request: NextRequest) {
         value: data.value ? parseFloat(String(data.value)) : null,
         probability: data.probability ? parseInt(String(data.probability)) : null,
         notes: data.notes || null,
+        nextFollowUp: nextFollowUp,
       }
     });
     
@@ -76,6 +83,7 @@ export async function POST(request: NextRequest) {
       value: lead.value || undefined,
       probability: lead.probability || undefined,
       notes: lead.notes || undefined,
+      nextFollowUp: lead.nextFollowUp ? lead.nextFollowUp.toISOString().split('T')[0] : undefined,
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString(),
     });
@@ -100,6 +108,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID requerido para PUT' }, { status: 400 });
     }
 
+    // Parse nextFollowUp date
+    let nextFollowUp: Date | null = null;
+    if (data.nextFollowUp) {
+      nextFollowUp = new Date(data.nextFollowUp);
+    }
+
     const lead = await db.commercialLead.upsert({
       where: { id: data.id },
       create: {
@@ -114,6 +128,7 @@ export async function PUT(request: NextRequest) {
         value: data.value ? parseFloat(String(data.value)) : null,
         probability: data.probability ? parseInt(String(data.probability)) : null,
         notes: data.notes || null,
+        nextFollowUp: nextFollowUp,
       },
       update: {
         name: data.name,
@@ -125,6 +140,7 @@ export async function PUT(request: NextRequest) {
         value: data.value ? parseFloat(String(data.value)) : null,
         probability: data.probability ? parseInt(String(data.probability)) : null,
         notes: data.notes || null,
+        nextFollowUp: nextFollowUp,
       }
     });
     
@@ -139,6 +155,7 @@ export async function PUT(request: NextRequest) {
       value: lead.value || undefined,
       probability: lead.probability || undefined,
       notes: lead.notes || undefined,
+      nextFollowUp: lead.nextFollowUp ? lead.nextFollowUp.toISOString().split('T')[0] : undefined,
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString(),
     });

@@ -595,6 +595,15 @@ export function ProjectsModule() {
     }
   };
 
+  const handleDeletePost = async (postId: string) => {
+    deleteSocialMediaPost(postId);
+    try {
+      await deleteSocialMediaPostFromDB(postId);
+    } catch (e) {
+      console.error('Error deleting post from DB:', e);
+    }
+  };
+
   // Task CRUD
   const openNewTaskDialog = () => {
     setEditingTask(null);
@@ -856,7 +865,8 @@ export function ProjectsModule() {
     else addSocialMediaPost(postData);
     // Sync to DB
     try {
-      await saveSocialMediaPostToDB({
+      console.log('Saving social media post to DB:', postData.id);
+      const result = await saveSocialMediaPostToDB({
         id: postData.id,
         platform: postData.platform,
         content: postData.content,
@@ -866,8 +876,10 @@ export function ProjectsModule() {
         status: postData.status,
         notes: postData.notes,
       });
+      console.log('Social media post saved successfully:', result);
     } catch (e) {
       console.error('Error saving social media post to DB:', e);
+      alert('Error al guardar el post: ' + (e instanceof Error ? e.message : String(e)));
     }
     setIsPostDialogOpen(false);
   };
@@ -1485,7 +1497,7 @@ export function ProjectsModule() {
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem onClick={() => { setEditingPost(post); setPostForm({ platform: post.platform, content: post.content, hashtags: post.hashtags?.join(' ') || '', scheduledDate: post.scheduledDate || '', scheduledTime: post.scheduledTime || '', status: post.status, notes: post.notes || '' }); setIsPostDialogOpen(true); }}><Edit className="h-4 w-4 mr-2" />Editar</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => deleteSocialMediaPost(post.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Eliminar</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDeletePost(post.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Eliminar</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

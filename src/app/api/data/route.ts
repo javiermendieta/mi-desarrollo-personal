@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Formatear leads comerciales
-    const formattedCommercialLeads = (commercialLeads || []).map((l: { id: string; name: string; company: string | null; email: string | null; phone: string | null; source: string | null; status: string; value: number | null; probability: number | null; notes: string | null; createdAt: Date; updatedAt: Date }) => ({
+    const formattedCommercialLeads = (commercialLeads || []).map((l: { id: string; name: string; company: string | null; email: string | null; phone: string | null; source: string | null; status: string; value: number | null; probability: number | null; notes: string | null; nextFollowUp: Date | null; createdAt: Date; updatedAt: Date }) => ({
       id: l.id,
       name: l.name,
       company: l.company || undefined,
@@ -241,20 +241,20 @@ export async function GET(request: NextRequest) {
       value: l.value || undefined,
       probability: l.probability || undefined,
       notes: l.notes || undefined,
-      nextFollowUp: undefined,
+      nextFollowUp: l.nextFollowUp ? l.nextFollowUp.toISOString().split('T')[0] : undefined,
       createdAt: safeFormatISO(l.createdAt) || '',
       updatedAt: safeFormatISO(l.updatedAt) || '',
     }));
 
     // Formatear social media posts
-    const formattedSocialMediaPosts = (socialMediaPosts || []).map((p: { id: string; platform: string; content: string | null; status: string; scheduledAt: Date | null; publishedAt: Date | null; mediaUrl: string | null; tags: unknown; createdAt: Date; updatedAt: Date }) => ({
+    const formattedSocialMediaPosts = (socialMediaPosts || []).map((p: { id: string; platform: string; content: string | null; status: string; scheduledAt: Date | null; publishedAt: Date | null; mediaUrl: string | null; tags: unknown; notes: string | null; createdAt: Date; updatedAt: Date }) => ({
       id: p.id,
       platform: p.platform,
       content: p.content || '',
       status: p.status,
       scheduledDate: safeFormatDate(p.scheduledAt),
       scheduledTime: p.scheduledAt ? new Date(p.scheduledAt).toTimeString().slice(0, 5) : undefined,
-      notes: undefined,
+      notes: p.notes || undefined,
       hashtags: (p.tags as string[]) || [],
       createdAt: safeFormatISO(p.createdAt) || '',
       updatedAt: safeFormatISO(p.updatedAt) || '',

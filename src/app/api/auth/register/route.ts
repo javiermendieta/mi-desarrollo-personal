@@ -30,9 +30,11 @@ export async function POST(request: NextRequest) {
     
     const user = await db.user.create({
       data: {
+        id: crypto.randomUUID(),
         email,
         password: hashedPassword,
         name: name || email.split('@')[0],
+        updatedAt: new Date(),
       },
       select: {
         id: true,

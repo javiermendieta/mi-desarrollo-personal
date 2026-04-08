@@ -10,12 +10,12 @@ import { ReadingModule } from '@/components/modules/ReadingModule';
 import { DiaryModule } from '@/components/modules/DiaryModule';
 import { GoalsModule } from '@/components/modules/GoalsModule';
 import { HabitsModule } from '@/components/modules/HabitsModule';
-import { SpiritualModule } from '@/components/modules/SpiritualModule';
 import { FinanceModule } from '@/components/modules/FinanceModule';
 import { HealthModule } from '@/components/modules/HealthModule';
 import { NotesModule } from '@/components/modules/NotesModule';
 import { ProgressModule } from '@/components/modules/ProgressModule';
 import { ProjectsModule } from '@/components/modules/ProjectsModule';
+import { BlueprintModule } from '@/components/modules/BlueprintModule';
 import { AIAssistant } from '@/components/AIAssistant';
 import { AuthForm } from '@/components/AuthForm';
 import { useAppStore } from '@/lib/store';
@@ -58,6 +58,7 @@ export default function Home() {
 
   const loadDataFromDB = async () => {
     try {
+      console.log('Loading data from DB...');
       const res = await fetch('/api/data');
       
       // Manejo seguro de JSON
@@ -69,6 +70,11 @@ export default function Home() {
         console.error('Error parsing JSON from API');
         return;
       }
+
+      console.log('Data loaded from DB:', {
+        commercialLeads: data.commercialLeads?.length || 0,
+        socialMediaPosts: data.socialMediaPosts?.length || 0,
+      });
 
       if (!data.error) {
         importAllData({
@@ -100,7 +106,10 @@ export default function Home() {
           commercialLeads: data.commercialLeads || [],
           socialMediaPosts: data.socialMediaPosts || [],
           projectAlerts: data.projectAlerts || [],
+          blueprintTasks: data.blueprintTasks || [],
+          blueprintTaskLogs: data.blueprintTaskLogs || [],
         });
+        console.log('Data imported to store successfully');
       }
     } catch (e) {
       console.error('Error loading data from DB', e);
@@ -139,8 +148,6 @@ export default function Home() {
         return <GoalsModule />;
       case 'habits':
         return <HabitsModule />;
-      case 'spiritual':
-        return <SpiritualModule />;
       case 'finances':
         return <FinanceModule />;
       case 'health':
@@ -151,6 +158,8 @@ export default function Home() {
         return <ProgressModule key={Date.now()} />;
       case 'projects':
         return <ProjectsModule />;
+      case 'blueprint':
+        return <BlueprintModule />;
       default:
         return <Dashboard onNavigate={setActiveSection} />;
     }

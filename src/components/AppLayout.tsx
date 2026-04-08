@@ -21,13 +21,11 @@ import {
   Menu,
   Moon,
   Sun,
-  Download,
-  Upload,
   Trash2,
   LogOut,
   TrendingUp,
   FolderKanban,
-  Cross,
+  Zap,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -41,8 +39,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/lib/store';
-import { exportData, importData } from '@/hooks/useLocalStorage';
-import type { AppData } from '@/types';
 
 interface NavItem {
   id: string;
@@ -52,12 +48,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
+  { id: 'blueprint', label: 'Blueprint', icon: <Zap className="h-5 w-5" /> },
   { id: 'progress', label: 'Progreso', icon: <TrendingUp className="h-5 w-5" /> },
   { id: 'projects', label: 'Proyectos', icon: <FolderKanban className="h-5 w-5" /> },
   { id: 'calendar', label: 'Calendario', icon: <Calendar className="h-5 w-5" /> },
   { id: 'sports', label: 'Deportes', icon: <Dumbbell className="h-5 w-5" /> },
   { id: 'yoga', label: 'Yoga & Meditación', icon: <Flower2 className="h-5 w-5" /> },
-  { id: 'spiritual', label: 'Vida Espiritual', icon: <Cross className="h-5 w-5" /> },
   { id: 'reading', label: 'Lectura', icon: <BookOpen className="h-5 w-5" /> },
   { id: 'diary', label: 'Diario', icon: <PenLine className="h-5 w-5" /> },
   { id: 'goals', label: 'Metas', icon: <Target className="h-5 w-5" /> },
@@ -80,7 +76,7 @@ interface AppLayoutProps {
 export function AppLayout({ children, activeSection, onSectionChange, onOpenAI, onLogout }: AppLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { settings, updateSettings, importAllData, resetAllData } = useAppStore();
+  const { settings, updateSettings, resetAllData } = useAppStore();
 
   const isDark = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -97,48 +93,6 @@ export function AppLayout({ children, activeSection, onSectionChange, onOpenAI, 
   const handleThemeToggle = () => {
     const newTheme = isDark ? 'light' : 'dark';
     updateSettings({ theme: newTheme });
-  };
-
-  const handleExport = () => {
-    const data = useAppStore.getState();
-    const exportData_: Partial<AppData> = {
-      settings: data.settings,
-      aiProfile: data.aiProfile,
-      events: data.events,
-      sports: data.sports,
-      yogaExercises: data.yogaExercises,
-      meditationSessions: data.meditationSessions,
-      yogaSessions: data.yogaSessions,
-      books: data.books,
-      diaryEntries: data.diaryEntries,
-      limitingBeliefs: data.limitingBeliefs,
-      goals: data.goals,
-      habits: data.habits,
-      transactions: data.transactions,
-      savingsGoals: data.savingsGoals,
-      budgets: data.budgets,
-      sleepLogs: data.sleepLogs,
-      hydrationLogs: data.hydrationLogs,
-      healthEntries: data.healthEntries,
-      quickNotes: data.quickNotes,
-      conversations: data.conversations,
-      projects: data.projects,
-    };
-    exportData(exportData_);
-  };
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const data = await importData<Partial<AppData>>(file);
-      if (data) {
-        importAllData(data as AppData);
-        alert('Datos importados correctamente');
-      }
-    } catch {
-      alert('Error al importar datos');
-    }
   };
 
   return (
@@ -209,22 +163,6 @@ export function AppLayout({ children, activeSection, onSectionChange, onOpenAI, 
 
             {!isCollapsed && (
               <>
-                <div className="flex gap-1 px-2">
-                  <Button variant="ghost" size="sm" className="flex-1" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-1" />
-                    Exportar
-                  </Button>
-                  <label className="flex-1">
-                    <Button variant="ghost" size="sm" className="w-full" asChild>
-                      <span>
-                        <Upload className="h-4 w-4 mr-1" />
-                        Importar
-                      </span>
-                    </Button>
-                    <input type="file" accept=".json" className="hidden" onChange={handleImport} />
-                  </label>
-                </div>
-
                 {onLogout && (
                   <Button variant="ghost" className="w-full justify-start gap-3" onClick={onLogout}>
                     <LogOut className="h-5 w-5" />

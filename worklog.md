@@ -85,3 +85,50 @@ Stage Summary:
 - Deploy: commit 63beaee
 
 ---
+Task ID: 6 - Crear Módulo Blueprint
+Agent: Super Z
+Task: Crear módulo de disciplina militar "Blueprint" con todas las funcionalidades solicitadas
+
+Work Log:
+- Creado modelo Prisma BlueprintTask y BlueprintTaskLog para persistencia en Supabase
+- Creados API endpoints: /api/blueprint (CRUD tareas) y /api/blueprint/log (toggle completado)
+- Actualizados tipos TypeScript con BlueprintTask y BlueprintTaskLog
+- Actualizado Zustand store con acciones para Blueprint
+- Creado BlueprintModule.tsx con todas las funcionalidades:
+  1. Sistema de Inicio "El Espejo de la Realidad": 4 frases de choque rotativas
+  2. Rutina Diaria Blindada: Checklist editable con 8 tareas por defecto (05:00 - 22:00)
+  3. Munición Espiritual: Citas bíblicas por día de la semana
+  4. Protocolo de Emergencia: Botón de pánico con 2 niveles (Burpees / Ducha fría)
+  5. Tracker de Progreso: KPIs de racha por tarea, progreso diario
+  6. Vistas: Diaria, Semanal (grid 7 días), Mensual (heatmap tipo GitHub)
+- Integrado módulo en sidebar y navegación principal
+- Ejecutada migración Prisma para crear tablas en Supabase
+
+Stage Summary:
+- Módulo Blueprint completamente funcional
+- Tareas editables: agregar, modificar, eliminar
+- Racha calculada por cada tarea individual
+- Vistas diaria/semanal/mensual para seguimiento completo
+- Botón de pánico visual con mensaje motivacional
+- Persistencia en Supabase (no localStorage)
+- Deploy listo: proyecto compila correctamente
+
+---
+Task ID: 7 - Fix persistencia Blueprint y deploy Vercel
+Agent: Super Z
+Task: Arreglar bug de tareas que se desmarcan al refrescar y verificar deploy en Vercel
+
+Work Log:
+- Identificado problema 1: .env apuntaba a SQLite local en lugar de Supabase
+- Actualizado .env con credenciales de Supabase (DATABASE_URL con pgbouncer=true)
+- Identificado problema 2: Timezone issues en endpoints de Blueprint
+- Creados helpers parseLocalDate() y getLocalDateString() para manejo correcto de fechas
+- Actualizado /api/blueprint/route.ts con fix de timezone en cálculo de streaks
+- Actualizado /api/blueprint/log/route.ts con fix de timezone en guardado y lectura de logs
+- Commiteados cambios: commit 177adb3
+
+Stage Summary:
+- Blueprint ahora persiste correctamente en Supabase
+- Fix de timezone aplicado (similar al que se hizo en Cashflow)
+- .env configurado con credenciales correctas de Supabase
+- Pendiente: Push manual a GitHub desde máquina local para deploy en Vercel

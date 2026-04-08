@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       scheduledDate: p.scheduledAt ? p.scheduledAt.toISOString().split('T')[0] : undefined,
       scheduledTime: p.scheduledAt ? new Date(p.scheduledAt).toTimeString().slice(0, 5) : undefined,
       hashtags: p.tags || [],
-      notes: undefined,
+      notes: p.notes || undefined,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
     }));
@@ -56,13 +56,14 @@ export async function POST(request: NextRequest) {
     
     const post = await db.socialMediaPost.create({
       data: {
-        id: data.id || undefined, // Use provided id or let Prisma generate one
+        id: data.id || crypto.randomUUID(),
         userId,
         platform: data.platform || 'instagram',
         content: data.content || '',
         status: data.status || 'idea',
         scheduledAt: scheduledAt,
         tags: data.hashtags || [],
+        notes: data.notes || null,
       }
     });
     
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
       scheduledDate: post.scheduledAt ? post.scheduledAt.toISOString().split('T')[0] : undefined,
       scheduledTime: post.scheduledAt ? new Date(post.scheduledAt).toTimeString().slice(0, 5) : undefined,
       hashtags: post.tags || [],
+      notes: post.notes || undefined,
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
     });
@@ -93,6 +95,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const data = await request.json();
+    console.log('PUT social media post:', data);
     
     if (!data.id) {
       return NextResponse.json({ error: 'ID requerido para PUT' }, { status: 400 });
@@ -105,6 +108,8 @@ export async function PUT(request: NextRequest) {
       scheduledAt = new Date(`${data.scheduledDate}T${time}:00`);
     }
 
+    console.log('Creating/updating post with:', { id: data.id, userId, platform: data.platform });
+
     const post = await db.socialMediaPost.upsert({
       where: { id: data.id },
       create: {
@@ -115,6 +120,7 @@ export async function PUT(request: NextRequest) {
         status: data.status || 'idea',
         scheduledAt: scheduledAt,
         tags: data.hashtags || [],
+        notes: data.notes || null,
       },
       update: {
         platform: data.platform,
@@ -122,8 +128,11 @@ export async function PUT(request: NextRequest) {
         status: data.status,
         scheduledAt: scheduledAt,
         tags: data.hashtags || [],
+        notes: data.notes || null,
       }
     });
+    
+    console.log('Post saved successfully:', post.id);
     
     return NextResponse.json({
       id: post.id,
@@ -133,6 +142,7 @@ export async function PUT(request: NextRequest) {
       scheduledDate: post.scheduledAt ? post.scheduledAt.toISOString().split('T')[0] : undefined,
       scheduledTime: post.scheduledAt ? new Date(post.scheduledAt).toTimeString().slice(0, 5) : undefined,
       hashtags: post.tags || [],
+      notes: post.notes || undefined,
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
     });
