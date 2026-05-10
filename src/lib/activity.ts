@@ -22,16 +22,23 @@ export async function trackActivity(
         details,
       }),
     });
-    
-    // Solo parsear JSON si hay contenido
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const result = await response.json();
-      if (!response.ok) {
-        console.error('Error al guardar actividad:', result);
+
+    // Leer el texto de la respuesta primero
+    const text = await response.text();
+
+    // Solo intentar parsear JSON si hay contenido
+    if (text && text.trim()) {
+      try {
+        const result = JSON.parse(text);
+        if (!response.ok) {
+          console.error('Error al guardar actividad:', result);
+        }
+      } catch {
+        // Error parsing JSON, ignorar silenciosamente
+        if (!response.ok) {
+          console.error('Error al guardar actividad: respuesta inválida');
+        }
       }
-    } else if (!response.ok) {
-      console.error('Error al guardar actividad: respuesta no válida');
     }
   } catch (error) {
     // Solo log en consola, no mostrar alert al usuario
