@@ -11,7 +11,6 @@ export async function trackActivity(
   details?: Record<string, any>
 ): Promise<void> {
   try {
-    console.log('=== TrackActivity called ===', { type, action, title, referenceId });
     const response = await fetch('/api/activities', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -23,14 +22,19 @@ export async function trackActivity(
         details,
       }),
     });
-    const result = await response.json();
-    console.log('=== TrackActivity response ===', result);
     
-    if (!response.ok) {
-      alert('Error al guardar actividad: ' + JSON.stringify(result));
+    // Solo parsear JSON si hay contenido
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const result = await response.json();
+      if (!response.ok) {
+        console.error('Error al guardar actividad:', result);
+      }
+    } else if (!response.ok) {
+      console.error('Error al guardar actividad: respuesta no válida');
     }
   } catch (error) {
+    // Solo log en consola, no mostrar alert al usuario
     console.error('Error tracking activity:', error);
-    alert('Error tracking: ' + error);
   }
 }
