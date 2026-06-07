@@ -9,7 +9,7 @@ import type {
   HealthEntry, QuickNote, AIConversation, Project, ProjectTask, Milestone,
   SocialMediaPost, CommercialLead, ProjectDocument, ProjectMeeting, ProjectAlert,
   MedicalAppointment, MedicalTask, PNLData, PNLAccountPlan, AccountPlanItem,
-  BlueprintTask, BlueprintTaskLog,
+  BlueprintTask, BlueprintTaskLog, CashFlowProjection,
 } from '@/types';
 
 const defaultSettings: AppSettings = {
@@ -56,6 +56,7 @@ const defaultData: Omit<AppData, 'settings' | 'aiProfile'> = {
   projectAlerts: [],
   blueprintTasks: [],
   blueprintTaskLogs: [],
+  cashFlowProjections: [],
 };
 
 interface AppState extends AppData {
@@ -166,6 +167,10 @@ interface AppState extends AppData {
   deleteProjectAlert: (id: string) => void;
   dismissProjectAlert: (id: string) => void;
   markAlertAsRead: (id: string) => void;
+  // CashFlow Projections
+  addCashFlowProjection: (projection: CashFlowProjection) => void;
+  updateCashFlowProjection: (id: string, projection: Partial<CashFlowProjection>) => void;
+  deleteCashFlowProjection: (id: string) => void;
   // Blueprint
   setBlueprintTasks: (tasks: BlueprintTask[]) => void;
   addBlueprintTask: (task: BlueprintTask) => void;
@@ -384,6 +389,11 @@ export const useAppStore = create<AppState>()(
       dismissProjectAlert: (id) => set((state) => ({ projectAlerts: state.projectAlerts.map((a) => a.id === id ? { ...a, isDismissed: true } : a) })),
       markAlertAsRead: (id) => set((state) => ({ projectAlerts: state.projectAlerts.map((a) => a.id === id ? { ...a, isRead: true } : a) })),
 
+      // CashFlow Projections
+      addCashFlowProjection: (projection) => set((state) => ({ cashFlowProjections: [...state.cashFlowProjections, projection] })),
+      updateCashFlowProjection: (id, projection) => set((state) => ({ cashFlowProjections: state.cashFlowProjections.map((p) => p.id === id ? { ...p, ...projection, updatedAt: new Date().toISOString() } : p) })),
+      deleteCashFlowProjection: (id) => set((state) => ({ cashFlowProjections: state.cashFlowProjections.filter((p) => p.id !== id) })),
+
       // Blueprint - ordenados por horario automáticamente
       setBlueprintTasks: (tasks) => set(() => ({ blueprintTasks: [...tasks].sort((a, b) => a.time.localeCompare(b.time)) })),
       addBlueprintTask: (task) => set((state) => ({ blueprintTasks: [...state.blueprintTasks, task].sort((a, b) => a.time.localeCompare(b.time)) })),
@@ -437,6 +447,7 @@ export const useAppStore = create<AppState>()(
           projectAlerts: data.projectAlerts || [],
           blueprintTasks: data.blueprintTasks || [],
           blueprintTaskLogs: data.blueprintTaskLogs || [],
+          cashFlowProjections: data.cashFlowProjections || [],
         }));
       },
       resetAllData: () => set(() => ({ settings: defaultSettings, aiProfile: defaultAIProfile, ...defaultData })),

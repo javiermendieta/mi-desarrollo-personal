@@ -121,6 +121,25 @@ model Budget {
   @@index([userId, month])
 }
 
+model CashFlowProjection {
+  id              String   @id
+  userId          String
+  description     String
+  type            String   // "income" | "expense"
+  projectedAmount Float
+  realAmount      Float?
+  date            DateTime
+  status          String   @default("projected") // "projected" | "partial" | "confirmed"
+  category        String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  User            User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, date])
+  @@index([userId, status])
+}
+
 model CalendarEvent {
   id                String    @id
   userId            String
@@ -512,6 +531,7 @@ model User {
   BlueprintTaskLog   BlueprintTaskLog[]
   Book               Book[]
   Budget             Budget[]
+  CashFlowProjection CashFlowProjection[]
   CalendarEvent      CalendarEvent[]
   CommercialLead     CommercialLead[]
   Conversation       Conversation[]

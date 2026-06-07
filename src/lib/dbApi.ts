@@ -492,6 +492,38 @@ export async function deleteMedicalTaskFromDB(id: string) {
   return res.json();
 }
 
+// CashFlow Projections API
+export async function saveProjectionToDB(projection: {
+  id?: string;
+  description: string;
+  type: string;
+  projectedAmount: number;
+  realAmount?: number;
+  date: string;
+  status?: string;
+  category?: string;
+  notes?: string;
+}) {
+  const method = projection.id ? 'PUT' : 'POST';
+  const res = await fetch('/api/projections', {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(projection),
+  });
+  if (!res.ok) {
+    const error = await res.text();
+    console.error('Error saving projection:', error);
+    throw new Error('Error saving projection');
+  }
+  return res.json();
+}
+
+export async function deleteProjectionFromDB(id: string) {
+  const res = await fetch(`/api/projections?id=${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Error deleting projection');
+  return res.json();
+}
+
 // Conversations API
 export async function saveConversationToDB(conversation: {
   id?: string;

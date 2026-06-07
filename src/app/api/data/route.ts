@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
       commercialLeads,
       socialMediaPosts,
       projectAlerts,
+      cashFlowProjections,
     ] = await Promise.all([
       db.settings.findUnique({ where: { userId } }).catch(() => null),
       db.aIProfile.findUnique({ where: { userId } }).catch(() => null),
@@ -125,6 +126,7 @@ export async function GET(request: NextRequest) {
       db.commercialLead.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }).catch(() => []),
       db.socialMediaPost.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }).catch(() => []),
       db.projectAlert.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }).catch(() => []),
+      db.cashFlowProjection.findMany({ where: { userId }, orderBy: { date: 'asc' } }).catch(() => []),
     ]);
 
     console.log('Data loaded:', {
@@ -288,6 +290,21 @@ export async function GET(request: NextRequest) {
       updatedAt: safeFormatISO(t.updatedAt) || '',
     }));
 
+    // Formatear cashflow projections
+    const formattedCashFlowProjections = (cashFlowProjections || []).map((p: { id: string; description: string; type: string; projectedAmount: number; realAmount: number | null; date: Date; status: string; category: string | null; notes: string | null; createdAt: Date; updatedAt: Date }) => ({
+      id: p.id,
+      description: p.description,
+      type: p.type,
+      projectedAmount: p.projectedAmount,
+      realAmount: p.realAmount ?? undefined,
+      date: safeFormatDate(p.date) || '',
+      status: p.status,
+      category: p.category || undefined,
+      notes: p.notes || undefined,
+      createdAt: safeFormatISO(p.createdAt) || '',
+      updatedAt: safeFormatISO(p.updatedAt) || '',
+    }));
+
     // Formatear conversaciones
     const formattedConversations = (conversations || []).map((c: { id: string; title: string; messages: unknown; createdAt: Date; updatedAt: Date }) => ({
       id: c.id,
@@ -326,6 +343,7 @@ export async function GET(request: NextRequest) {
       commercialLeads: formattedCommercialLeads,
       socialMediaPosts: formattedSocialMediaPosts,
       projectAlerts: projectAlerts || [],
+      cashFlowProjections: formattedCashFlowProjections,
     });
   } catch (error) {
     console.error('Error fetching data:', error);

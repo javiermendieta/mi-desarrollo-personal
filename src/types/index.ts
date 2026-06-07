@@ -206,6 +206,23 @@ export interface Budget {
   month: string;
 }
 
+// ==================== CASHFLOW PROJECTION ====================
+export type ProjectionStatus = 'projected' | 'partial' | 'confirmed';
+
+export interface CashFlowProjection {
+  id: string;
+  description: string;
+  type: 'income' | 'expense';
+  projectedAmount: number;
+  realAmount?: number;
+  date: string; // yyyy-MM-dd
+  status: ProjectionStatus;
+  category?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ==================== P&L (Profit & Loss) ====================
 
 // Planificación mensual de cada cuenta
@@ -520,4 +537,5 @@ export interface AppData {
   projectAlerts: ProjectAlert[];
   blueprintTasks: BlueprintTask[];
   blueprintTaskLogs: BlueprintTaskLog[];
+  cashFlowProjections: CashFlowProjection[];
 }

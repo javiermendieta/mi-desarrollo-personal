@@ -24,7 +24,7 @@ import {
 import { 
   Wallet, Plus, Trash2, TrendingUp, TrendingDown, PiggyBank, Target, DollarSign,
   Edit, ChevronDown, ChevronUp, List, Calendar, ArrowUpCircle, ArrowDownCircle,
-  Loader2
+  Loader2, GitBranch
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import type { AccountPlanItem, PNLSectionType, Transaction } from '@/types';
@@ -32,6 +32,7 @@ import {
   saveAccountPlanToDB, deleteAccountPlanFromDB,
   savePNLToDB, saveTransactionToDB, deleteTransactionFromDB 
 } from '@/lib/dbApi';
+import { ProjectionTab } from '@/components/modules/ProjectionTab';
 import { v4 as uuidv4 } from 'uuid';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -643,6 +644,7 @@ export function FinanceModule() {
           <TabsTrigger value="cashflow">Cashflow</TabsTrigger>
           <TabsTrigger value="accounts">Plan de Cuentas</TabsTrigger>
           <TabsTrigger value="savings">Ahorros</TabsTrigger>
+          <TabsTrigger value="projection">Proyección</TabsTrigger>
         </TabsList>
 
         {/* P&L Tab */}
@@ -945,6 +947,11 @@ export function FinanceModule() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Projection Tab */}
+        <TabsContent value="projection" className="space-y-4">
+          <ProjectionTab />
         </TabsContent>
       </Tabs>
 
