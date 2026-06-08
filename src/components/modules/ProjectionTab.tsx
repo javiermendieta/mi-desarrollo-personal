@@ -26,17 +26,19 @@ import {
   Plus,
   Trash2,
   Edit,
+  Copy,
   ArrowUpCircle,
   ArrowDownCircle,
   AlertTriangle,
   Loader2,
   CalendarDays,
   Wallet,
+  Zap,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { saveProjectionToDB, deleteProjectionFromDB } from '@/lib/dbApi';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
+import { format, addDays, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
@@ -79,12 +81,18 @@ const STATUS_CONFIG: Record<ProjectionStatus, { label: string; className: string
   confirmed: { label: 'Confirmado', className: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' },
 };
 
-// ---------- Chart config ----------
+// ---------- Chart config with explicit colors ----------
 
 const projectionChartConfig = {
-  projected: { label: 'Saldo Proyectado', color: 'hsl(var(--chart-1))' },
-  real: { label: 'Saldo Real', color: 'hsl(var(--chart-2))' },
+  projected: { label: 'Proyectado', color: '#3b82f6' },
+  real: { label: 'Real', color: '#10b981' },
 } satisfies ChartConfig;
+
+// ---------- Day names ----------
+
+const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+// getDay returns 0=Sun, 1=Mon... we need 1=Mon...6=Sat, 0=Sun for our checkboxes
+const DAY_INDEX_TO_JS: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 0: 0 };
 
 // ---------- Component ----------
 
@@ -98,6 +106,7 @@ export function ProjectionTab() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [quickDialogOpen, setQuickDialogOpen] = useState(false);
   const [editingProjection, setEditingProjection] = useState<CashFlowProjection | null>(null);
 
   // Form state
@@ -109,6 +118,17 @@ export function ProjectionTab() {
   const [formStatus, setFormStatus] = useState<ProjectionStatus>('projected');
   const [formCategory, setFormCategory] = useState('');
   const [formNotes, setFormNotes] = useState('');
+
+  // Quick entry state
+  const [quickType, setQuickType] = useState<'income' | 'expense'>('income');
+  const [quickDescription, setQuickDescription] = useState('');
+  const [quickAmount, setQuickAmount] = useState('');
+  const [quickCategory, setQuickCategory] = useState('');
+  const [quickStatus, setQuickStatus] = useState<ProjectionStatus>('projected');
+  const [quickDays, setQuickDays] = useState<number[]>([1, 2, 3, 4, 5, 6]); // Mon-Sat by default
+  const [quickDateFrom, setQuickDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [quickDateTo, setQuickDateTo] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [quickPreviewCount, setQuickPreviewCount] = useState(0);
 
   // ---------- Computed data ----------
 
@@ -221,6 +241,24 @@ export function ProjectionTab() {
     });
   }, [groupedByDate]);
 
+  // Quick entry preview count
+  useMemo(() => {
+    if (!quickDateFrom || !quickDateTo || quickDays.length === 0) {
+      setQuickPreviewCount(0);
+      return;
+    }
+    const from = parseLocalDate(quickDateFrom);
+    const to = parseLocalDate(quickDateTo);
+    let count = 0;
+    let current = new Date(from);
+    while (current <= to) {
+      const jsDay = getDay(current);
+      if (quickDays.includes(jsDay)) count++;
+      current = addDays(current, 1);
+    }
+    setQuickPreviewCount(count);
+  }, [quickDateFrom, quickDateTo, quickDays]);
+
   // ---------- Dialog helpers ----------
 
   const openDialog = (projection: CashFlowProjection | null = null) => {
@@ -244,6 +282,19 @@ export function ProjectionTab() {
       setFormCategory('');
       setFormNotes('');
     }
+    setDialogOpen(true);
+  };
+
+  const openDuplicateDialog = (projection: CashFlowProjection) => {
+    setEditingProjection(null);
+    setFormType(projection.type);
+    setFormDescription(projection.description);
+    setFormProjectedAmount(projection.projectedAmount.toString());
+    setFormRealAmount('');
+    setFormDate(format(addDays(parseLocalDate(projection.date), 1), 'yyyy-MM-dd'));
+    setFormStatus('projected');
+    setFormCategory(projection.category || '');
+    setFormNotes(projection.notes || '');
     setDialogOpen(true);
   };
 
@@ -307,6 +358,56 @@ export function ProjectionTab() {
     }
   };
 
+  // Quick entry save
+  const handleQuickSave = async () => {
+    if (!quickDescription.trim() || !quickAmount || !quickDateFrom || !quickDateTo || quickDays.length === 0) return;
+    setIsSaving(true);
+    const now = new Date().toISOString();
+    const from = parseLocalDate(quickDateFrom);
+    const to = parseLocalDate(quickDateTo);
+    let current = new Date(from);
+
+    while (current <= to) {
+      const jsDay = getDay(current);
+      if (quickDays.includes(jsDay)) {
+        const dateStr = format(current, 'yyyy-MM-dd');
+        const newId = uuidv4();
+        const projectionData = {
+          description: quickDescription.trim(),
+          type: quickType,
+          projectedAmount: parseFloat(quickAmount) || 0,
+          date: dateStr,
+          status: quickStatus,
+          category: quickCategory.trim() || undefined,
+        };
+        addCashFlowProjection({
+          id: newId,
+          ...projectionData,
+          createdAt: now,
+          updatedAt: now,
+        });
+        try {
+          await saveProjectionToDB({
+            id: newId,
+            ...projectionData,
+          });
+        } catch (e) {
+          console.error('Error saving quick projection to DB:', e);
+        }
+      }
+      current = addDays(current, 1);
+    }
+
+    setIsSaving(false);
+    setQuickDialogOpen(false);
+  };
+
+  const toggleQuickDay = (day: number) => {
+    setQuickDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
   // ---------- Render ----------
 
   // Empty state
@@ -318,14 +419,20 @@ export function ProjectionTab() {
             <h2 className="text-2xl font-bold">Proyección</h2>
             <p className="text-muted-foreground">Cashflow Proyección • Ingresos y Egresos futuros</p>
           </div>
-          <Button onClick={() => openDialog(null)} disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4 mr-2" />
-            )}
-            Nueva Proyección
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setQuickDialogOpen(true)} disabled={isSaving}>
+              <Zap className="h-4 w-4 mr-2" />
+              Carga Rápida
+            </Button>
+            <Button onClick={() => openDialog(null)} disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              Nueva
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -336,19 +443,26 @@ export function ProjectionTab() {
               Las proyecciones de cashflow te permiten planificar ingresos y egresos futuros,
               visualizar tu saldo acumulado día a día y detectar riesgos de liquidez antes de que ocurran.
             </p>
-            <Button onClick={() => openDialog(null)} disabled={isSaving}>
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              Crear primera proyección
-            </Button>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={() => setQuickDialogOpen(true)} disabled={isSaving}>
+                <Zap className="h-4 w-4 mr-2" />
+                Carga Rápida
+              </Button>
+              <Button onClick={() => openDialog(null)} disabled={isSaving}>
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Una por una
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Dialog */}
+        {/* Dialogs */}
         {renderDialog()}
+        {renderQuickDialog()}
       </div>
     );
   }
@@ -363,14 +477,20 @@ export function ProjectionTab() {
           <h2 className="text-2xl font-bold">Proyección</h2>
           <p className="text-muted-foreground">Cashflow Proyección • Ingresos y Egresos futuros</p>
         </div>
-        <Button onClick={() => openDialog(null)} disabled={isSaving}>
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4 mr-2" />
-          )}
-          Nueva Proyección
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setQuickDialogOpen(true)} disabled={isSaving}>
+            <Zap className="h-4 w-4 mr-2" />
+            Carga Rápida
+          </Button>
+          <Button onClick={() => openDialog(null)} disabled={isSaving}>
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
+            Nueva
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -483,17 +603,29 @@ export function ProjectionTab() {
           <CardContent>
             <ChartContainer config={projectionChartConfig} className="h-[300px] w-full">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <defs>
+                  <linearGradient id="gradientProjected" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                  </linearGradient>
+                  <linearGradient id="gradientReal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   dataKey="label"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  tick={{ fontSize: 12 }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  tick={{ fontSize: 12 }}
                   tickFormatter={(value: number) => {
                     if (Math.abs(value) >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
                     if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(0)}K`;
@@ -515,36 +647,40 @@ export function ProjectionTab() {
                     />
                   }
                 />
-                <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
+                <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="5 5" strokeWidth={1.5} />
                 <Area
                   type="monotone"
                   dataKey="projected"
-                  stroke="var(--color-projected)"
-                  fill="var(--color-projected)"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
+                  stroke="#3b82f6"
+                  fill="url(#gradientProjected)"
+                  strokeWidth={2.5}
                   name="projected"
+                  dot={false}
                 />
                 <Area
                   type="monotone"
                   dataKey="real"
-                  stroke="var(--color-real)"
-                  fill="var(--color-real)"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
+                  stroke="#10b981"
+                  fill="url(#gradientReal)"
+                  strokeWidth={2.5}
+                  strokeDasharray="6 3"
                   name="real"
+                  dot={false}
                 />
               </AreaChart>
             </ChartContainer>
-            <div className="flex items-center justify-center gap-6 mt-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-center gap-8 mt-3 text-sm">
               <div className="flex items-center gap-2">
-                <div className="h-0.5 w-6 bg-[var(--color-projected)] rounded" />
-                <span>Proyectado</span>
+                <div className="w-8 h-1 rounded" style={{ backgroundColor: '#3b82f6' }} />
+                <span className="text-muted-foreground">Proyectado</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-0.5 w-6 bg-[var(--color-real)] rounded border-dashed" style={{ borderTop: '2px dashed var(--color-real)', height: 0 }} />
-                <span>Real</span>
+                <div className="w-8 h-0 border-t-2 border-dashed" style={{ borderColor: '#10b981' }} />
+                <span className="text-muted-foreground">Real</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-0 border-t-2 border-dashed" style={{ borderColor: '#ef4444' }} />
+                <span className="text-muted-foreground">Cero</span>
               </div>
             </div>
           </CardContent>
@@ -626,7 +762,7 @@ export function ProjectionTab() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
                             <div className="text-right">
                               <p
                                 className={cn(
@@ -648,7 +784,17 @@ export function ProjectionTab() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 shrink-0"
+                              onClick={() => openDuplicateDialog(p)}
+                              title="Duplicar"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
                               onClick={() => openDialog(p)}
+                              title="Editar"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -657,6 +803,7 @@ export function ProjectionTab() {
                               size="icon"
                               className="h-8 w-8 shrink-0 text-destructive"
                               onClick={() => handleDelete(p.id)}
+                              title="Eliminar"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -696,7 +843,7 @@ export function ProjectionTab() {
                     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
                       <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
                       <span className="text-sm font-semibold text-red-600 dark:text-red-400">
-                        ⚠ Saldo acumulado: {formatCurrency(cumulative)}
+                        Saldo acumulado: {formatCurrency(cumulative)}
                       </span>
                     </div>
                   )}
@@ -734,12 +881,193 @@ export function ProjectionTab() {
         </CardContent>
       </Card>
 
-      {/* Dialog */}
+      {/* Dialogs */}
       {renderDialog()}
+      {renderQuickDialog()}
     </div>
   );
 
-  // ---------- Dialog renderer ----------
+  // ---------- Quick Entry Dialog ----------
+
+  function renderQuickDialog() {
+    return (
+      <Dialog open={quickDialogOpen} onOpenChange={setQuickDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-yellow-500" />
+              Carga Rápida
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Type toggle */}
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={quickType === 'income' ? 'default' : 'outline'}
+                  className={cn(
+                    'flex-1',
+                    quickType === 'income' && 'bg-green-600 hover:bg-green-700 text-white'
+                  )}
+                  onClick={() => setQuickType('income')}
+                >
+                  <ArrowUpCircle className="h-4 w-4 mr-2" />
+                  Ingreso
+                </Button>
+                <Button
+                  type="button"
+                  variant={quickType === 'expense' ? 'default' : 'outline'}
+                  className={cn(
+                    'flex-1',
+                    quickType === 'expense' && 'bg-red-600 hover:bg-red-700 text-white'
+                  )}
+                  onClick={() => setQuickType('expense')}
+                >
+                  <ArrowDownCircle className="h-4 w-4 mr-2" />
+                  Egreso
+                </Button>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="quick-description">Descripción</Label>
+              <Input
+                id="quick-description"
+                value={quickDescription}
+                onChange={(e) => setQuickDescription(e.target.value)}
+                placeholder="Ej: Ingreso diario, Viático..."
+              />
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="quick-amount">Monto</Label>
+              <Input
+                id="quick-amount"
+                type="number"
+                value={quickAmount}
+                onChange={(e) => setQuickAmount(e.target.value)}
+                placeholder="0"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            {/* Category */}
+            <div className="space-y-2">
+              <Label htmlFor="quick-category">Categoría</Label>
+              <Input
+                id="quick-category"
+                value={quickCategory}
+                onChange={(e) => setQuickCategory(e.target.value)}
+                placeholder="Ej: Sueldo, Alquiler... (opcional)"
+              />
+            </div>
+
+            {/* Status */}
+            <div className="space-y-2">
+              <Label>Estado</Label>
+              <Select
+                value={quickStatus}
+                onValueChange={(value) => setQuickStatus(value as ProjectionStatus)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="projected">Proyectado</SelectItem>
+                  <SelectItem value="partial">Parcial</SelectItem>
+                  <SelectItem value="confirmed">Confirmado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Day selection */}
+            <div className="space-y-2">
+              <Label>Días de la semana</Label>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 0].map((day) => (
+                  <Button
+                    key={day}
+                    type="button"
+                    variant={quickDays.includes(day) ? 'default' : 'outline'}
+                    size="sm"
+                    className={cn(
+                      'flex-1 h-10 text-sm font-medium',
+                      quickDays.includes(day) && 'bg-primary text-primary-foreground'
+                    )}
+                    onClick={() => toggleQuickDay(day)}
+                  >
+                    {DAY_LABELS[day]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date range */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="quick-from">Desde</Label>
+                <Input
+                  id="quick-from"
+                  type="date"
+                  value={quickDateFrom}
+                  onChange={(e) => setQuickDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="quick-to">Hasta</Label>
+                <Input
+                  id="quick-to"
+                  type="date"
+                  value={quickDateTo}
+                  onChange={(e) => setQuickDateTo(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Preview */}
+            {quickPreviewCount > 0 && quickAmount && (
+              <div className="p-3 rounded-lg bg-muted/70 border">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Se crearán</span>
+                  <Badge variant="secondary" className="text-sm">
+                    {quickPreviewCount} proyecciones
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total: {formatCurrency(quickPreviewCount * (parseFloat(quickAmount) || 0))}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleQuickSave}
+              disabled={isSaving || !quickDescription.trim() || !quickAmount || quickDays.length === 0}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4 mr-2" />
+              )}
+              Crear {quickPreviewCount} proyecciones
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ---------- Single projection Dialog ----------
 
   function renderDialog() {
     return (
