@@ -108,6 +108,7 @@ export default function Home() {
           projectAlerts: data.projectAlerts || [],
           blueprintTasks: data.blueprintTasks || [],
           blueprintTaskLogs: data.blueprintTaskLogs || [],
+          cashFlowProjections: data.cashFlowProjections || [],
         });
         console.log('Data imported to store successfully');
       }
