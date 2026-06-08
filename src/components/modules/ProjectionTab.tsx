@@ -39,6 +39,20 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  ReferenceLine,
+} from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 import type { CashFlowProjection, ProjectionStatus } from '@/types';
 
 // ---------- Helpers ----------
@@ -64,6 +78,13 @@ const STATUS_CONFIG: Record<ProjectionStatus, { label: string; className: string
   partial: { label: 'Parcial', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
   confirmed: { label: 'Confirmado', className: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' },
 };
+
+// ---------- Chart config ----------
+
+const projectionChartConfig = {
+  projected: { label: 'Saldo Proyectado', color: 'hsl(var(--chart-1))' },
+  real: { label: 'Saldo Real', color: 'hsl(var(--chart-2))' },
+} satisfies ChartConfig;
 
 // ---------- Component ----------
 
@@ -176,6 +197,29 @@ export function ProjectionTab() {
     )[0];
     return cumulativeByDate[lastDate];
   }, [cumulativeByDate]);
+
+  // Chart data: cumulative projected + real balance by date
+  const chartData = useMemo(() => {
+    let cumProjected = 0;
+    let cumReal = 0;
+    return groupedByDate.map(([date, projections]) => {
+      const dayProjectedNet = projections.reduce((sum, p) => {
+        return sum + (p.type === 'income' ? p.projectedAmount : -p.projectedAmount);
+      }, 0);
+      const dayRealNet = projections.reduce((sum, p) => {
+        const amount = p.realAmount ?? p.projectedAmount;
+        return sum + (p.type === 'income' ? amount : -amount);
+      }, 0);
+      cumProjected += dayProjectedNet;
+      cumReal += dayRealNet;
+      return {
+        date,
+        label: format(parseLocalDate(date), 'd MMM', { locale: es }),
+        projected: Math.round(cumProjected),
+        real: Math.round(cumReal),
+      };
+    });
+  }, [groupedByDate]);
 
   // ---------- Dialog helpers ----------
 
@@ -426,6 +470,86 @@ export function ProjectionTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Chart: Saldo Acumulado */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Saldo Acumulado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={projectionChartConfig} className="h-[300px] w-full">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={(value: number) => {
+                    if (Math.abs(value) >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                    if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                    return `${value}`;
+                  }}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name) => {
+                        const numValue = typeof value === 'number' ? value : 0;
+                        return (
+                          <span className="font-mono font-medium">
+                            {formatCurrency(numValue)}
+                          </span>
+                        );
+                      }}
+                      labelFormatter={(label) => label}
+                    />
+                  }
+                />
+                <ReferenceLine y={0} stroke="hsl(var(--destructive))" strokeDasharray="3 3" />
+                <Area
+                  type="monotone"
+                  dataKey="projected"
+                  stroke="var(--color-projected)"
+                  fill="var(--color-projected)"
+                  fillOpacity={0.15}
+                  strokeWidth={2}
+                  name="projected"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="real"
+                  stroke="var(--color-real)"
+                  fill="var(--color-real)"
+                  fillOpacity={0.15}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  name="real"
+                />
+              </AreaChart>
+            </ChartContainer>
+            <div className="flex items-center justify-center gap-6 mt-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <div className="h-0.5 w-6 bg-[var(--color-projected)] rounded" />
+                <span>Proyectado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-0.5 w-6 bg-[var(--color-real)] rounded border-dashed" style={{ borderTop: '2px dashed var(--color-real)', height: 0 }} />
+                <span>Real</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Timeline */}
       <Card>
