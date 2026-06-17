@@ -188,11 +188,11 @@ export function ProjectionTab() {
       : '0.0';
 
   // Running cumulative balance & risk calculation
+  // Risk = cumulative drops below 0 (running out of cash / liquidity risk)
   const { cumulativeByDate, riskDate } = useMemo(() => {
     let cumulative = 0;
     const cumMap: Record<string, number> = {};
     let firstRisk: string | null = null;
-    const threshold = totalProjectedIncome * 0.1;
 
     groupedByDate.forEach(([date, projections]) => {
       const dayNet = projections.reduce((sum, p) => {
@@ -201,13 +201,14 @@ export function ProjectionTab() {
       }, 0);
       cumulative += dayNet;
       cumMap[date] = cumulative;
-      if (firstRisk === null && cumulative < threshold) {
+      // Risk triggers when cumulative goes negative (cash flow problem)
+      if (firstRisk === null && cumulative < 0) {
         firstRisk = date;
       }
     });
 
     return { cumulativeByDate: cumMap, riskDate: firstRisk };
-  }, [groupedByDate, totalProjectedIncome]);
+  }, [groupedByDate]);
 
   const finalCumulative = useMemo(() => {
     const dates = Object.keys(cumulativeByDate);
