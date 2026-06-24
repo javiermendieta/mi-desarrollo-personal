@@ -34,11 +34,14 @@ import {
   CalendarDays,
   Wallet,
   Zap,
+  Filter,
+  X,
+  CalendarRange,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { saveProjectionToDB, deleteProjectionFromDB } from '@/lib/dbApi';
 import { v4 as uuidv4 } from 'uuid';
-import { format, addDays, getDay } from 'date-fns';
+import { format, addDays, getDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
@@ -130,13 +133,97 @@ export function ProjectionTab() {
   const [quickDateTo, setQuickDateTo] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
   const [quickPreviewCount, setQuickPreviewCount] = useState(0);
 
+  // ---------- Date filter state ----------
+  // Default range: today → +30 days (so user sees current + near-future projections)
+  const [filterFrom, setFilterFrom] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [filterTo, setFilterTo] = useState<string>(format(endOfMonth(addDays(new Date(), 0)), 'yyyy-MM-dd'));
+  const [activePreset, setActivePreset] = useState<string>('thisMonth');
+
+  const clearFilter = () => {
+    setFilterFrom('');
+    setFilterTo('');
+    setActivePreset('');
+  };
+
+  const applyPreset = (preset: string) => {
+    const today = new Date();
+    let from: Date, to: Date;
+    switch (preset) {
+      case 'today':
+        from = today;
+        to = today;
+        break;
+      case 'yesterday':
+        from = subDays(today, 1);
+        to = subDays(today, 1);
+        break;
+      case 'last7':
+        from = subDays(today, 6);
+        to = today;
+        break;
+      case 'next7':
+        from = today;
+        to = addDays(today, 6);
+        break;
+      case 'thisWeek':
+        from = startOfWeek(today, { weekStartsOn: 1 });
+        to = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      case 'thisMonth':
+        from = startOfMonth(today);
+        to = endOfMonth(today);
+        break;
+      case 'lastMonth':
+        from = startOfMonth(subDays(startOfMonth(today), 1));
+        to = endOfMonth(subDays(startOfMonth(today), 1));
+        break;
+      case 'nextMonth':
+        from = startOfMonth(addDays(endOfMonth(today), 1));
+        to = endOfMonth(addDays(endOfMonth(today), 1));
+        break;
+      case 'next30':
+        from = today;
+        to = addDays(today, 29);
+        break;
+      default:
+        return;
+    }
+    setFilterFrom(format(from, 'yyyy-MM-dd'));
+    setFilterTo(format(to, 'yyyy-MM-dd'));
+    setActivePreset(preset);
+  };
+
+  const handleFilterFromChange = (value: string) => {
+    setFilterFrom(value);
+    setActivePreset('');
+  };
+  const handleFilterToChange = (value: string) => {
+    setFilterTo(value);
+    setActivePreset('');
+  };
+
   // ---------- Computed data ----------
 
+  // Apply date filter to projections
+  const filteredProjections = useMemo(() => {
+    if (!filterFrom && !filterTo) return cashFlowProjections;
+    return cashFlowProjections.filter((p) => {
+      const d = p.date; // YYYY-MM-DD format, lexicographically comparable
+      if (filterFrom && d < filterFrom) return false;
+      if (filterTo && d > filterTo) return false;
+      return true;
+    });
+  }, [cashFlowProjections, filterFrom, filterTo]);
+
+  const totalProjectionsCount = cashFlowProjections.length;
+  const filteredCount = filteredProjections.length;
+  const isFiltered = totalProjectionsCount !== filteredCount;
+
   const sortedProjections = useMemo(() => {
-    return [...cashFlowProjections].sort(
+    return [...filteredProjections].sort(
       (a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
     );
-  }, [cashFlowProjections]);
+  }, [filteredProjections]);
 
   const groupedByDate = useMemo(() => {
     const groups: Record<string, CashFlowProjection[]> = {};
@@ -151,34 +238,34 @@ export function ProjectionTab() {
 
   const totalProjectedIncome = useMemo(
     () =>
-      cashFlowProjections
+      filteredProjections
         .filter((p) => p.type === 'income')
         .reduce((sum, p) => sum + p.projectedAmount, 0),
-    [cashFlowProjections]
+    [filteredProjections]
   );
 
   const totalProjectedExpense = useMemo(
     () =>
-      cashFlowProjections
+      filteredProjections
         .filter((p) => p.type === 'expense')
         .reduce((sum, p) => sum + p.projectedAmount, 0),
-    [cashFlowProjections]
+    [filteredProjections]
   );
 
   const totalRealIncome = useMemo(
     () =>
-      cashFlowProjections
+      filteredProjections
         .filter((p) => p.type === 'income')
         .reduce((sum, p) => sum + (p.realAmount ?? 0), 0),
-    [cashFlowProjections]
+    [filteredProjections]
   );
 
   const totalRealExpense = useMemo(
     () =>
-      cashFlowProjections
+      filteredProjections
         .filter((p) => p.type === 'expense')
         .reduce((sum, p) => sum + (p.realAmount ?? 0), 0),
-    [cashFlowProjections]
+    [filteredProjections]
   );
 
   const projectedBalance = totalProjectedIncome - totalProjectedExpense;
@@ -494,6 +581,136 @@ export function ProjectionTab() {
         </div>
       </div>
 
+      {/* Date Range Filter */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-col gap-3">
+            {/* Top row: title + presets */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium text-sm">Filtrar por período</span>
+                {isFiltered && (
+                  <Badge variant="secondary" className="text-xs">
+                    {filteredCount} de {totalProjectionsCount}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activePreset === 'today' ? 'default' : 'outline'}
+                  className="h-7 text-xs"
+                  onClick={() => applyPreset('today')}
+                >
+                  Hoy
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activePreset === 'thisWeek' ? 'default' : 'outline'}
+                  className="h-7 text-xs"
+                  onClick={() => applyPreset('thisWeek')}
+                >
+                  Esta semana
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activePreset === 'thisMonth' ? 'default' : 'outline'}
+                  className="h-7 text-xs"
+                  onClick={() => applyPreset('thisMonth')}
+                >
+                  Este mes
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activePreset === 'lastMonth' ? 'default' : 'outline'}
+                  className="h-7 text-xs"
+                  onClick={() => applyPreset('lastMonth')}
+                >
+                  Mes pasado
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activePreset === 'nextMonth' ? 'default' : 'outline'}
+                  className="h-7 text-xs"
+                  onClick={() => applyPreset('nextMonth')}
+                >
+                  Mes próximo
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activePreset === 'next30' ? 'default' : 'outline'}
+                  className="h-7 text-xs"
+                  onClick={() => applyPreset('next30')}
+                >
+                  Próx 30 días
+                </Button>
+                {(filterFrom || filterTo) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-muted-foreground"
+                    onClick={clearFilter}
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Limpiar
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom row: date inputs */}
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="filter-from" className="text-xs text-muted-foreground">
+                  Desde
+                </Label>
+                <Input
+                  id="filter-from"
+                  type="date"
+                  value={filterFrom}
+                  onChange={(e) => handleFilterFromChange(e.target.value)}
+                  className="h-9 w-[170px]"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="filter-to" className="text-xs text-muted-foreground">
+                  Hasta
+                </Label>
+                <Input
+                  id="filter-to"
+                  type="date"
+                  value={filterTo}
+                  onChange={(e) => handleFilterToChange(e.target.value)}
+                  className="h-9 w-[170px]"
+                />
+              </div>
+              {filterFrom && filterTo && (
+                <div className="text-xs text-muted-foreground flex items-center gap-1 pb-2">
+                  <CalendarRange className="h-3 w-3" />
+                  {format(parseLocalDate(filterFrom), 'd MMM yyyy', { locale: es })} →{' '}
+                  {format(parseLocalDate(filterTo), 'd MMM yyyy', { locale: es })}
+                </div>
+              )}
+            </div>
+
+            {isFiltered && (
+              <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pt-1">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Hay {totalProjectionsCount - filteredCount} proyecciones fuera del rango seleccionado.
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {/* Ingresos Proyectados */}
@@ -591,6 +808,31 @@ export function ProjectionTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Empty state when filter has no matches */}
+      {filteredProjections.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <CalendarRange className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-60" />
+            <h3 className="text-lg font-semibold mb-1">Sin proyecciones en este rango</h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-4">
+              No hay proyecciones entre{' '}
+              <strong>
+                {filterFrom ? format(parseLocalDate(filterFrom), 'd MMM yyyy', { locale: es }) : 'el inicio'}
+              </strong>{' '}
+              y{' '}
+              <strong>
+                {filterTo ? format(parseLocalDate(filterTo), 'd MMM yyyy', { locale: es }) : 'el final'}
+              </strong>
+              .
+            </p>
+            <Button variant="outline" onClick={clearFilter}>
+              <X className="h-4 w-4 mr-2" />
+              Limpiar filtro
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Chart: Saldo Acumulado */}
       {chartData.length > 0 && (
